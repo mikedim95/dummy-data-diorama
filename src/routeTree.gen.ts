@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as MachineRouteImport } from './routes/machine'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ScanRouteImport } from './routes/scan'
@@ -20,6 +21,11 @@ import { Route as TaskIdRouteImport } from './routes/task.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MachineRoute = MachineRouteImport.update({
@@ -55,6 +61,7 @@ const TaskIdRoute = TaskIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/machine': typeof MachineRoute
   '/profile': typeof ProfileRoute
   '/scan': typeof ScanRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/machine': typeof MachineRoute
   '/profile': typeof ProfileRoute
   '/scan': typeof ScanRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/machine': typeof MachineRoute
   '/profile': typeof ProfileRoute
   '/scan': typeof ScanRoute
@@ -84,12 +93,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/machine' | '/profile' | '/scan' | '/shift' | '/work' | '/task/$id'
+    | '/'
+    | '/admin'
+    | '/machine'
+    | '/profile'
+    | '/scan'
+    | '/shift'
+    | '/work'
+    | '/task/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/machine' | '/profile' | '/scan' | '/shift' | '/work' | '/task/$id'
+  to:
+    | '/'
+    | '/admin'
+    | '/machine'
+    | '/profile'
+    | '/scan'
+    | '/shift'
+    | '/work'
+    | '/task/$id'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/machine'
     | '/profile'
     | '/scan'
@@ -100,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   MachineRoute: typeof MachineRoute
   ProfileRoute: typeof ProfileRoute
   ScanRoute: typeof ScanRoute
@@ -115,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/machine': {
@@ -164,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   MachineRoute: MachineRoute,
   ProfileRoute: ProfileRoute,
   ScanRoute: ScanRoute,
