@@ -109,9 +109,9 @@ for (let d = -150; d <= -1; d += int(1, 2)) {
   const id = `ORD-${n++}`;
   const customer = pick(CUSTOMERS);
   const qty = int(2, 30);
-  const delivered = d + int(3, 7);
+  const delivered = Math.min(d + int(3, 7), 0);
   const lateBy = r() < 0.15 ? int(1, 4) : 0;
-  ORDERS.push({ id, customerId: customer.id, title, quantity: qty, templateRev: `rev ${int(1, 4)}`, approval: "approved", status: delivered <= -1 ? "delivered" : "ready", createdAt: dayISO(d - 6), deadline: dayISO(delivered - lateBy), deliveredAt: delivered <= -1 ? dayISO(delivered, 16) : undefined, qc: { result: "pass", note: "Dimensions and finish within tolerance.", at: dayISO(delivered - 1, 14) } });
+  ORDERS.push({ id, customerId: customer.id, title, quantity: qty, templateRev: `rev ${int(1, 4)}`, approval: "approved", status: "delivered", createdAt: dayISO(d - 6), deadline: dayISO(delivered - lateBy), deliveredAt: dayISO(delivered, 8), qc: { result: "pass", note: "Dimensions and finish within tolerance.", at: dayISO(delivered - 1, 14) } });
   const steps: [string, string][] = [[firstStep, machine], ...(FOLLOW[firstStep] ?? [])];
   steps.forEach(([name, m], i) => {
     const off = Math.min(d + i, 0);
