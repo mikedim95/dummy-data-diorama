@@ -150,7 +150,7 @@ describe.sequential("Complete database management", () => {
       expect(page.rows).toBeInstanceOf(Array);
       await recordsWorkspace(db, manager, { entity: entity.key, search: "test", offset: 0 });
     }
-  });
+  }, 15000);
   it("creates, edits, versions and searches people and relationships without accepting arbitrary fields", async () => {
     const employee = await createRecord(db, manager, "EMPLOYEE", {
       values: { full_name: "Registry Operator", job_title: "Technician" },

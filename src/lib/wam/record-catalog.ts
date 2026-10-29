@@ -317,6 +317,7 @@ export const RECORD_ENTITIES: RecordEntity[] = [
     label: "User accounts",
     group: "People",
     fields: [
+      { key: "login_email", label: "Login email", type: "text", nullable: true, max: 255 },
       {
         key: "employee_id",
         type: "reference",
@@ -359,8 +360,8 @@ export const RECORD_ENTITIES: RecordEntity[] = [
       },
     ],
     createFields: ["employee_id", "auth_provider", "auth_subject", "role", "is_active"],
-    editFields: ["role", "is_active"],
-    columns: ["employee_id", "auth_provider", "role", "is_active"],
+    editFields: ["login_email", "role", "is_active"],
+    columns: ["employee_id", "login_email", "auth_provider", "role", "is_active"],
     labelFields: ["employee_id", "role"],
     adminOnly: true,
   },

@@ -7,9 +7,11 @@ import {
   authenticate,
   clearSessionCookie,
   localDemoEnabled,
-  localLogin,
+  passwordLogin,
+  cloudPasswordLogin,
+  accountSession,
+  secureRequest,
   previewEnabled,
-  previewLogin,
   requestOrigin,
   requireRole,
   sessionCookie,
@@ -78,26 +80,43 @@ export async function handleWamRequest(request: Request): Promise<Response> {
         sampleData: localDemoEnabled() || previewEnabled(),
       });
     }
-    if (path === "preview-login" && method === "POST") {
-      const input = z
-        .object({ id: z.string().min(1).max(80), password: z.string().min(1).max(200) })
-        .strict()
-        .parse(await body(request));
-      const account = await previewLogin(db, request, input.id, input.password);
-      if (account.role === "PRODUCTION") await startShift(db, account);
-      return json({ role: account.role, employeeCode: account.employee_code }, 200, {
-        "Set-Cookie": sessionCookie(account.id, true, "preview"),
-      });
-    }
     if (path === "login" && method === "POST") {
       const input = z
-        .object({ id: z.string().min(1).max(80), pin: z.string().min(1).max(100) })
+        .object({
+          email: z
+            .string()
+            .trim()
+            .email()
+            .max(255)
+            .transform((value) => value.toLowerCase()),
+          password: z.string().min(1).max(200),
+        })
+        .strict()
         .parse(await body(request));
-      const account = await localLogin(db, request, input.id, input.pin);
-      if (account.role === "PRODUCTION") await startShift(db, account);
-      return json({ role: account.role, employeeCode: account.employee_code }, 200, {
-        "Set-Cookie": sessionCookie(account.id, new URL(request.url).protocol === "https:"),
-      });
+      const passwordMode = localDemoEnabled() || process.env["WAM_PREVIEW_MODE"] === "true";
+      const result = passwordMode
+        ? {
+            account: await passwordLogin(db, request, input.email, input.password),
+            session: undefined,
+          }
+        : await cloudPasswordLogin(db, request, input.email, input.password);
+      if (result.account.role === "PRODUCTION") await startShift(db, result.account);
+      return json(
+        {
+          ...(await accountSession(db, result.account)),
+          ...(result.session ? { session: result.session } : {}),
+        },
+        200,
+        passwordMode
+          ? {
+              "Set-Cookie": sessionCookie(
+                result.account.id,
+                secureRequest(request),
+                process.env["WAM_PREVIEW_MODE"] === "true" ? "preview" : "local",
+              ),
+            }
+          : undefined,
+      );
     }
     const account = await authenticate(db, request);
     const resource = /^records\/([A-Z_]+)(?:\/([0-9a-f-]+))?$/.exec(path);
@@ -131,12 +150,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
         );
       throw new ApiError(405, "Method not allowed for this record collection.");
     }
-    if (path === "session" && method === "GET")
-      return json({
-        role: account.role,
-        name: account.full_name,
-        employeeCode: account.employee_code,
-      });
+    if (path === "session" && method === "GET") return json(await accountSession(db, account));
     if (path === "logout" && method === "POST")
       return json({ ok: true }, 200, { "Set-Cookie": clearSessionCookie });
     if (path === "operator" && method === "GET") {

@@ -23,25 +23,27 @@ function fieldsFor(entity: RecordEntity, account: Account) {
 }
 function validator(field: RecordField) {
   let schema: z.ZodType =
-    field.type === "reference"
-      ? z.string().uuid()
-      : field.type === "boolean"
-        ? z.boolean()
-        : field.type === "integer"
-          ? z.number().int().min(-2147483648).max(2147483647)
-          : field.type === "decimal"
-            ? z.union([z.number().finite(), z.string().regex(/^-?\d{1,12}(\.\d{1,4})?$/)])
-            : field.type === "date"
-              ? z.iso.date()
-              : field.type === "datetime"
-                ? z.iso.datetime({ offset: true })
-                : field.type === "enum"
-                  ? z.enum(field.options as [string, ...string[]])
-                  : z
-                      .string()
-                      .trim()
-                      .min(field.required ? 1 : 0)
-                      .max(field.max ?? 20000);
+    field.key === "login_email"
+      ? z.string().trim().email().toLowerCase()
+      : field.type === "reference"
+        ? z.string().uuid()
+        : field.type === "boolean"
+          ? z.boolean()
+          : field.type === "integer"
+            ? z.number().int().min(-2147483648).max(2147483647)
+            : field.type === "decimal"
+              ? z.union([z.number().finite(), z.string().regex(/^-?\d{1,12}(\.\d{1,4})?$/)])
+              : field.type === "date"
+                ? z.iso.date()
+                : field.type === "datetime"
+                  ? z.iso.datetime({ offset: true })
+                  : field.type === "enum"
+                    ? z.enum(field.options as [string, ...string[]])
+                    : z
+                        .string()
+                        .trim()
+                        .min(field.required ? 1 : 0)
+                        .max(field.max ?? 20000);
   if (field.nullable) schema = schema.nullable();
   return schema;
 }

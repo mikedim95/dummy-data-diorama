@@ -1,4 +1,18 @@
 export const greek: Record<string, string> = {
+  "Sign in · WAM": "Σύνδεση · WAM",
+  "Sign in to WAM with your email and password.":
+    "Συνδεθείτε στο WAM με το email και τον κωδικό πρόσβασής σας.",
+  "Login email": "Email σύνδεσης",
+  "Password-local": "Τοπικός κωδικός πρόσβασης",
+  "Password-preview": "Κωδικός πρόσβασης προεπισκόπησης",
+  "Email or password not recognised.": "Το email ή ο κωδικός πρόσβασης δεν αναγνωρίζεται.",
+  "Password sign-in requires the configured secure origin.":
+    "Η σύνδεση απαιτεί τη ρυθμισμένη ασφαλή διεύθυνση της εφαρμογής.",
+  "Local password sign-in is disabled.":
+    "Η τοπική σύνδεση με κωδικό πρόσβασης είναι απενεργοποιημένη.",
+  "Password authentication is not configured.": "Η σύνδεση με κωδικό πρόσβασης δεν έχει ρυθμιστεί.",
+  "Your account does not have access to a workspace.":
+    "Ο λογαριασμός σας δεν έχει πρόσβαση σε χώρο εργασίας.",
   " · Every {0} days": " · Ανά {0} ημέρες",
   "{0} checks": "{0} έλεγχοι",
   "Needs attention": "Χρειάζεται προσοχή",

@@ -17,10 +17,11 @@ npm run db:seed
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. Operator accounts are `OP-104` and `OP-117`, with
-sample PIN `1234`. Management sign-in is at `/auth`, also with sample PIN `1234`.
-Change `WAM_LOCAL_PIN` in `.env.local` to change the local PIN. These are explicitly
-local sample accounts, not production credentials.
+Open http://127.0.0.1:3000. The single login form accepts email and password.
+Sample emails are `admin@wam.example`, `nikos@wam.example` and `eleni@wam.example`;
+the local password is `WamLocal!2026` or `WAM_LOCAL_PASSWORD`. Local access is
+restricted to non-production loopback requests. `/auth` redirects to `/`.
+The database supplies the active account, employee, role and landing destination.
 
 Without `DATABASE_URL`, the server uses PGlite: PostgreSQL running locally with
 data persisted in `.data/wam`. No Docker service is needed. Uploaded documents and photos are stored transactionally in PostgreSQL
@@ -55,7 +56,7 @@ file for future changes. Normal startup checks/applies pending migrations.
 
 ## Authentication and production
 
-Local sample login requires `WAM_LOCAL_DEMO=true`, a loopback host, and a
+Local password login requires `WAM_LOCAL_DEMO=true`, a loopback host, and a
 non-production process. Signed, HttpOnly, SameSite cookies last eight hours. Every
 request rechecks that its account and employee are active. All writes require a
 matching Origin header. The server supplies employee/account identities and audit
@@ -96,7 +97,7 @@ token; local clients use the session cookie.
 | Endpoint                                                      | Method | Purpose                                                                              |
 | ------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------ |
 | `health`, `config`                                            | GET    | Database readiness and local sample-mode flag                                        |
-| `login`                                                       | POST   | Local sample ID/PIN sign-in                                                          |
+| `login`                                                       | POST   | Unified email/password sign-in                                                          |
 | `session`                                                     | GET    | Current verified account summary                                                     |
 | `logout`                                                      | POST   | Clear local session                                                                  |
 | `operator`                                                    | GET    | Current database-backed operator snapshot                                            |
@@ -146,3 +147,24 @@ Backend tests execute the supplied SQL in PostgreSQL/PGlite and check the DBML
 column set, authentication and role filtering, approval rules, concurrent claims,
 version conflicts, photo persistence, audit attribution, inventory retries and
 insufficient stock, and shift completion. Existing app/KPI tests also run.
+
+## Unified sign-in
+
+Migration 004 adds a normalized unique `USER_ACCOUNT.login_email` and private
+`wam_internal.password_credentials` rows. Existing account UUIDs, roles and business
+history are preserved. Passwords use per-account random salts and scrypt; hashes are
+never returned by APIs or management snapshots. Seeded preview passwords continue
+to come from Render secrets, provisioned idempotently at startup. Local sample
+passwords come from `WAM_LOCAL_PASSWORD` and are restricted to loopback development.
+
+`POST /api/wam/login` accepts only `{email,password}`. It verifies the password and
+queries the active account/employee; the database role determines the destination.
+Production users open their shift/workstation; management users open the existing
+management tools. `GET /api/wam/session` rechecks identity/role on every request.
+There is no manager-specific or ID/PIN endpoint, signup button or role selector.
+
+For normal Supabase deployments the same endpoint verifies the credentials with
+Supabase, verifies claims and role grants, and resolves the WAM account by subject.
+Only after that check does the client persist its Supabase session. Preview/local
+logins use signed HttpOnly cookies. All modes enforce Origin checks and active WAM
+accounts. Record access continues to be authorized independently at query time.

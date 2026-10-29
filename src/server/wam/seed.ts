@@ -57,7 +57,13 @@ export async function seedDemo(
         await insert(tx, "USER_ACCOUNT", {
           id: demoId(`account:${e.id}`),
           employee_id: demoId(e.id),
-          auth_provider: authProvider,
+          auth_provider: authProvider === "seed-preview" ? "password-preview" : "password-local",
+          login_email:
+            e.id === "WAM-MANAGER-01"
+              ? "admin@wam.example"
+              : e.id === "OP-104"
+                ? "nikos@wam.example"
+                : "eleni@wam.example",
           auth_subject: e.id,
           role: e.id === "WAM-MANAGER-01" ? "ADMIN" : "PRODUCTION",
         });

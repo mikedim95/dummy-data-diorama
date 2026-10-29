@@ -13,14 +13,14 @@
 - Operator data access goes through `src/lib/wam/store.tsx` and `client-api.ts`, calling authenticated `/api/wam/*` endpoints. Server code lives in `src/server/wam`. Do not restore browser-local authoritative state.
 - Business rules (task sort, claim checks, shift finish) live as pure functions in `src/lib/wam/logic.ts` with tests.
 - Management dashboard lives under `/admin`; dashboard data goes through `src/lib/wam/admin-api.ts` and `getAdminSnapshot`; management records use `getManagementRecords` and the authenticated records API, with PostgreSQL queries in `src/server/wam/read-models.ts`. KPI rules live in `admin-logic.ts` with tests. Drill-down detail is the `d=type:id` search param rendered by `DetailDrawer`, so details are shareable and Back works.
-- Admin access: `/admin` is client-only (`ssr: false`) and redirects signed-out users to `/auth`; its data comes from role-checked `getAdminSnapshot`, `getManagementRecords` and the records API, which checks `user_roles` (manager; finance for money data) and strips what the caller may not see. Never import `admin-data.ts` from client code â€” only dynamically inside server handlers â€” so data never ships in the browser bundle.
+- Admin access: `/admin` is client-only (`ssr: false`) and redirects signed-out users to `/`; its data comes from role-checked `getAdminSnapshot`, `getManagementRecords` and the records API, which checks `user_roles` (manager; finance for money data) and strips what the caller may not see. Never import `admin-data.ts` from client code â€” only dynamically inside server handlers â€” so data never ships in the browser bundle.
 - Roles live in `public.user_roles` (`app_role`: manager, finance). The first account ever created is auto-granted both by a trigger; later accounts start with none.
 
 ## WAM v4 backend
 - Preserve the supplied SQL/DBML in `database/`. Add numbered migrations rather than editing applied migrations; initialization is for fresh databases only.
 - There are 28 public business tables: the supplied 25 plus OPERATOR_SHIFT, SHIFT_CHECK and JOB_ACTIVITY. Internal migration metadata lives in `wam_internal`.
-- PGlite is local development storage. Production requires `DATABASE_URL`; normal deployments use verified Supabase identities linked to active WAM accounts. The explicitly configured seeded Render preview uses generated passwords and `seed-preview` identities instead.
-- Local sample login requires `WAM_LOCAL_DEMO=true`, non-production mode, and a loopback host. Never expose sample PIN login in production.
+- PGlite is local development storage. Production requires `DATABASE_URL`; normal deployments use verified Supabase identities linked to active WAM accounts. The explicitly configured seeded Render preview uses generated passwords and `password-preview` identities instead.
+- One email/password form lives at `/`; `/auth` redirects there. Roles and destinations come from authenticated database queries. Local password login requires `WAM_LOCAL_DEMO=true`, non-production mode, and a loopback host. Never restore ID/PIN or dedicated manager login.
 - Cloud dashboard access requires both a WAM management role and the existing Supabase manager grant; finance data additionally requires the finance grant.
 - Set transaction-local audit actor/reason only after authentication. Respect SQL workflow triggers and optimistic versions. Stock balances are only changed by stock movements.
 - Demo fixtures are imported only by the server seeder. Management snapshots must never return demo fixture modules or bypass role checks.
@@ -28,7 +28,7 @@
 
 ## Render preview
 - `render.yaml` targets the existing WAM / Preview environment. The frontend and backend share one Node web service; Postgres holds the seeded schema and photo bytes.
-- Hosted preview login is separate from local PIN login. Require configured HTTPS origin, long generated manager/operator passwords, a stable session secret, secure mode-scoped cookies, and active database accounts. Never publish default PIN access.
+- All modes share `/api/wam/login` with email and password. Preview/local password hashes live only in `wam_internal.password_credentials`. Require configured HTTPS origin, long generated manager/operator passwords, a stable session secret, secure mode-scoped cookies, and active database accounts. Never publish local sample password access.
 - `npm run start:render` applies migrations and idempotently seeds an empty external database through the explicit preview seeding guard. Never reset or overwrite existing business data to deploy.
 - Store production photos transactionally in `wam_internal.document_content`; ephemeral service disk must not be the only copy.
 - See `docs/render.md` for secrets, account access, and free-plan expiry. Keep deployment credentials in ignored local files and Render environment secrets.

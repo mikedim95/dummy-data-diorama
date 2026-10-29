@@ -78,6 +78,8 @@ export function getDatabase() {
     if (process.env["WAM_LOCAL_DEMO"] === "true" && process.env["NODE_ENV"] !== "production") {
       const { seedDemo } = await import("./seed");
       await seedDemo(db);
+      const { bootstrapPasswords } = await import("./passwords");
+      await bootstrapPasswords(db, "local");
     }
     return db;
   })();

@@ -41,12 +41,9 @@ const initial: State = {
 };
 type Ctx = State & {
   hydrated: boolean;
-  authMode: "local" | "preview" | "supabase";
   online: boolean;
   backendError: string | null;
   machine: Machine | null;
-  login: (id: string, pin: string) => Promise<string | null>;
-  resumeSession: () => Promise<void>;
   lookupMachine: (code: string) => Machine | null;
   selectMachine: (code: string) => Promise<void>;
   setStartCheck: (id: string, value: CheckState | null) => void;
@@ -70,7 +67,6 @@ const StoreCtx = createContext<Ctx | null>(null);
 export function WamProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(initial);
   const [hydrated, setHydrated] = useState(false);
-  const [authMode, setAuthMode] = useState<"local" | "preview" | "supabase">("supabase");
   const [online, setOnline] = useState(true);
   const [backendError, setBackendError] = useState<string | null>(null);
   const pending = useRef(0);
@@ -94,15 +90,7 @@ export function WamProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   useEffect(() => {
-    void wamRequest<{ localDemo: boolean; preview: boolean }>("config")
-      .then((config) => {
-        setAuthMode(config.preview ? "preview" : config.localDemo ? "local" : "supabase");
-        return refresh();
-      })
-      .catch((error: Error) => {
-        setBackendError(error.message);
-        setHydrated(true);
-      });
+    void refresh();
     setOnline(navigator.onLine);
     const on = () => {
       setOnline(true);
@@ -137,7 +125,6 @@ export function WamProvider({ children }: { children: ReactNode }) {
     writes.current = operation;
     return operation;
   }, []);
-  const resumeSession = useCallback(() => update("shift/start", {}), [update]);
   const lookupMachine = useCallback(
     (code: string) => {
       const value = code.trim().toUpperCase();
@@ -163,24 +150,10 @@ export function WamProvider({ children }: { children: ReactNode }) {
     return {
       ...state,
       hydrated,
-      authMode,
       online,
       backendError,
       lookupMachine,
       machine: state.machines.find((machine) => machine.code === state.machineCode) ?? null,
-      resumeSession,
-      login: async (id, pin) => {
-        try {
-          await wamRequest(
-            authMode === "preview" ? "preview-login" : "login",
-            authMode === "preview" ? { id, password: pin } : { id, pin },
-          );
-          await update("shift/start", {});
-          return null;
-        } catch (error) {
-          return (error as Error).message;
-        }
-      },
       selectMachine: (code) => update("machine", { code }),
       setStartCheck: (id, value) => check("start", id, value),
       setEndCheck: (id, value) => check("end", id, value),
@@ -222,17 +195,7 @@ export function WamProvider({ children }: { children: ReactNode }) {
         }
       },
     };
-  }, [
-    state,
-    hydrated,
-    authMode,
-    online,
-    backendError,
-    lookupMachine,
-    refresh,
-    update,
-    resumeSession,
-  ]);
+  }, [state, hydrated, online, backendError, lookupMachine, refresh, update]);
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;
 }
 

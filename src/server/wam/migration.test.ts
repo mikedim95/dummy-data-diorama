@@ -16,7 +16,11 @@ it("upgrades populated v4 records without losing checks, completed-job activity,
       plan = randomUUID(),
       attendance = randomUUID(),
       document = randomUUID();
-    await insert(db, "EMPLOYEE", { id: employee, full_name: "Legacy Operator" });
+    await insert(db, "EMPLOYEE", {
+      id: employee,
+      full_name: "Legacy Operator",
+      employee_code: "LEG-OP",
+    });
     await insert(db, "MACHINE", {
       id: machine,
       name: "Legacy CNC",
@@ -99,8 +103,28 @@ it("upgrades populated v4 records without losing checks, completed-job activity,
       "INSERT INTO wam_internal.document_content(document_id,content) VALUES($1,decode('cHJlc2VydmU=','base64'))",
       [document],
     );
+    const account = randomUUID();
+    await insert(db, "USER_ACCOUNT", {
+      id: account,
+      employee_id: employee,
+      auth_provider: "seed-preview",
+      auth_subject: "OP-104",
+      role: "PRODUCTION",
+    });
     await migrate(db);
     await migrate(db);
+    expect(
+      (
+        await db.query('SELECT id,login_email,auth_provider,role FROM "USER_ACCOUNT" WHERE id=$1', [
+          account,
+        ])
+      ).rows[0],
+    ).toMatchObject({
+      id: account,
+      login_email: "leg-op@wam.example",
+      auth_provider: "password-preview",
+      role: "PRODUCTION",
+    });
     const preserved = (await db.query('SELECT * FROM "JOB" WHERE id=$1', [job])).rows[0]!;
     expect(preserved["notes"]).toBe(notes);
     expect(preserved["status"]).toBe("COMPLETED");

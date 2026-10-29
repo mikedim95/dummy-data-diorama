@@ -1,6 +1,7 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./database";
+import { verifyPassword } from "./passwords";
 
 export class ApiError extends Error {
   constructor(
@@ -18,6 +19,7 @@ export type Account = {
   job_title: string;
   role: string;
   auth_provider: string;
+  login_email?: string | null;
   managerAccess?: boolean;
   financeAccess?: boolean;
 };
@@ -80,11 +82,13 @@ export async function authenticate(db: Database, request: Request): Promise<Acco
           if (
             typeof payload.sub === "string" &&
             payload.expires > Date.now() &&
-            ((payload.mode === "local" && localDemoEnabled()) ||
+            ((payload.mode === "local" &&
+              localDemoEnabled() &&
+              ["localhost", "127.0.0.1", "[::1]"].includes(new URL(request.url).hostname)) ||
               (payload.mode === "preview" && previewEnabled()))
           ) {
             accountId = payload.sub;
-            cookieProvider = payload.mode === "preview" ? "seed-preview" : "local-demo";
+            cookieProvider = payload.mode === "preview" ? "password-preview" : "password-local";
           }
         } catch {
           /* Malformed cookies are treated as signed out. */
@@ -118,7 +122,7 @@ export async function authenticate(db: Database, request: Request): Promise<Acco
   }
   const account = (
     await db.query<Account>(
-      'SELECT u.id,u.employee_id,u.role,u.auth_provider,e.employee_code,e.full_name,e.job_title FROM "USER_ACCOUNT" u JOIN "EMPLOYEE" e ON e.id=u.employee_id WHERE u.id=$1 AND u.is_active AND e.is_active',
+      'SELECT u.id,u.employee_id,u.role,u.auth_provider,u.login_email,e.employee_code,e.full_name,e.job_title FROM "USER_ACCOUNT" u JOIN "EMPLOYEE" e ON e.id=u.employee_id WHERE u.id=$1 AND u.is_active AND e.is_active',
       [accountId ?? null],
     )
   ).rows[0];
@@ -144,30 +148,6 @@ export function requireRole(account: Account, roles: string[]) {
     throw new ApiError(403, "Your account does not have permission for this action.");
 }
 
-export async function localLogin(db: Database, request: Request, id: string, pin: string) {
-  const host = new URL(request.url).hostname;
-  if (!localDemoEnabled() || !["localhost", "127.0.0.1", "[::1]"].includes(host))
-    throw new ApiError(
-      403,
-      "Local sample login is disabled. Use your configured identity provider.",
-    );
-  const key = id.trim().toUpperCase();
-  const attempts = limitAttempts(`local:${key}`);
-  const expected = Buffer.from(process.env["WAM_LOCAL_PIN"] ?? "1234");
-  const received = Buffer.from(pin);
-  if (received.length !== expected.length || !timingSafeEqual(expected, received))
-    throw new ApiError(401, "Operator ID or PIN not recognised.");
-  const account = (
-    await db.query<Account>(
-      'SELECT u.id,u.employee_id,u.role,u.auth_provider,e.employee_code,e.full_name,e.job_title FROM "USER_ACCOUNT" u JOIN "EMPLOYEE" e ON e.id=u.employee_id WHERE u.auth_provider=\'local-demo\' AND u.auth_subject=$1 AND u.is_active AND e.is_active',
-      [key],
-    )
-  ).rows[0];
-  if (!account) throw new ApiError(401, "Operator ID or PIN not recognised.");
-  attempts.delete(`local:${key}`);
-  return account;
-}
-
 function limitAttempts(key: string) {
   const attempts = (runtime.wamLoginAttempts ??= new Map());
   const previous = attempts.get(key);
@@ -181,30 +161,91 @@ function limitAttempts(key: string) {
   return attempts;
 }
 
-export async function previewLogin(db: Database, request: Request, id: string, password: string) {
-  const secure =
-    new URL(request.url).protocol === "https:" ||
-    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
-  if (!previewEnabled() || !secure || request.headers.get("origin") !== requestOrigin(request))
-    throw new ApiError(403, "Hosted preview login requires its configured HTTPS origin.");
-  const key = id.trim().toUpperCase();
-  if (!["OP-104", "OP-117", "WAM-MANAGER-01"].includes(key))
-    throw new ApiError(401, "Account or password not recognised.");
-  const attempts = limitAttempts(`preview:${key}`);
-  const expected =
-    process.env[
-      key === "WAM-MANAGER-01" ? "WAM_PREVIEW_ADMIN_PASSWORD" : "WAM_PREVIEW_OPERATOR_PASSWORD"
-    ]!;
-  const hash = (value: string) => createHash("sha256").update(value).digest();
-  if (!timingSafeEqual(hash(expected), hash(password)))
-    throw new ApiError(401, "Account or password not recognised.");
+export const secureRequest = (request: Request) =>
+  new URL(request.url).protocol === "https:" ||
+  request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
+
+export async function passwordLogin(
+  db: Database,
+  request: Request,
+  email: string,
+  password: string,
+) {
+  const preview = process.env["WAM_PREVIEW_MODE"] === "true";
+  const host = new URL(request.url).hostname;
+  if (
+    preview &&
+    (!previewEnabled() ||
+      !secureRequest(request) ||
+      request.headers.get("origin") !== requestOrigin(request))
+  )
+    throw new ApiError(403, "Password sign-in requires the configured secure origin.");
+  if (!preview && (!localDemoEnabled() || !["localhost", "127.0.0.1", "[::1]"].includes(host)))
+    throw new ApiError(403, "Local password sign-in is disabled.");
+  const key = email.trim().toLowerCase();
+  const attempts = limitAttempts(`password:${key}`);
   const account = (
-    await db.query<Account>(
-      'SELECT u.id,u.employee_id,u.role,u.auth_provider,e.employee_code,e.full_name,e.job_title FROM "USER_ACCOUNT" u JOIN "EMPLOYEE" e ON e.id=u.employee_id WHERE u.auth_provider=\'seed-preview\' AND u.auth_subject=$1 AND u.is_active AND e.is_active',
-      [key],
+    await db.query<Account & { password_hash: string }>(
+      'SELECT u.id,u.employee_id,u.role,u.auth_provider,u.login_email,e.employee_code,e.full_name,e.job_title,p.password_hash FROM "USER_ACCOUNT" u JOIN "EMPLOYEE" e ON e.id=u.employee_id JOIN wam_internal.password_credentials p ON p.account_id=u.id WHERE lower(u.login_email)=$1 AND u.auth_provider=$2 AND u.is_active AND e.is_active',
+      [key, preview ? "password-preview" : "password-local"],
     )
   ).rows[0];
-  if (!account) throw new ApiError(401, "Account or password not recognised.");
-  attempts.delete(`preview:${key}`);
-  return account;
+  const valid = await verifyPassword(password, account?.password_hash);
+  if (!valid || !account) throw new ApiError(401, "Email or password not recognised.");
+  attempts.delete(`password:${key}`);
+  const { password_hash: discard, ...identity } = account;
+  return {
+    ...identity,
+    managerAccess: ["ADMIN", "MANAGER"].includes(identity.role),
+    financeAccess: identity.role === "ADMIN",
+  };
+}
+
+export async function cloudPasswordLogin(
+  db: Database,
+  request: Request,
+  email: string,
+  password: string,
+) {
+  const url = process.env["SUPABASE_URL"],
+    key = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !key) throw new ApiError(403, "Password authentication is not configured.");
+  if (process.env["NODE_ENV"] === "production" && !secureRequest(request))
+    throw new ApiError(403, "Password sign-in requires the configured secure origin.");
+  const attempts = limitAttempts(`cloud:${email}`);
+  const client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error || !data.session) throw new ApiError(401, "Email or password not recognised.");
+  const headers = new Headers(request.headers);
+  headers.delete("cookie");
+  headers.set("authorization", `Bearer ${data.session.access_token}`);
+  const account = await authenticate(db, new Request(request.url, { headers }));
+  attempts.delete(`cloud:${email}`);
+  return {
+    account,
+    session: { access_token: data.session.access_token, refresh_token: data.session.refresh_token },
+  };
+}
+
+export async function accountSession(db: Database, account: Account) {
+  const shift =
+    account.role === "PRODUCTION"
+      ? (
+          await db.query(
+            "SELECT machine_id FROM \"OPERATOR_SHIFT\" WHERE employee_id=$1 AND status='OPEN'",
+            [account.employee_id],
+          )
+        ).rows[0]
+      : undefined;
+  return {
+    id: account.id,
+    email: account.login_email ?? null,
+    role: account.role,
+    name: account.full_name,
+    employeeCode: account.employee_code,
+    destination:
+      account.role === "PRODUCTION" ? (shift?.["machine_id"] ? "/work" : "/scan") : "/admin",
+  };
 }

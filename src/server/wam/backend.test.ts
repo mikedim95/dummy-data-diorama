@@ -5,6 +5,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connectDatabase, migrate, type Database } from "./database";
+import { bootstrapPasswords } from "./passwords";
 import { demoId, seedDemo } from "./seed";
 import { handleWamRequest } from "./api";
 import { authenticate, sessionCookie } from "./auth";
@@ -30,12 +31,13 @@ const accountFor = (cookie: string) =>
 
 beforeAll(async () => {
   process.env["WAM_LOCAL_DEMO"] = "true";
-  process.env["WAM_LOCAL_PIN"] = "1234";
+  process.env["WAM_LOCAL_PASSWORD"] = "WamLocal!2026";
   directory = await mkdtemp(join(tmpdir(), "wam-backend-"));
   process.env["WAM_UPLOAD_DIR"] = join(directory, "uploads");
   db = await connectDatabase(undefined, "memory://");
   await migrate(db);
   await seedDemo(db);
+  await bootstrapPasswords(db, "local");
   runtime.wamDatabase = Promise.resolve(db);
   operatorCookie = sessionCookie(demoId("account:OP-104")).split(";")[0]!;
   managerCookie = sessionCookie(demoId("account:WAM-MANAGER-01")).split(";")[0]!;
@@ -79,18 +81,24 @@ describe.sequential("WAM v4 PostgreSQL backend", () => {
     );
   });
 
-  it("requires authentication, checks PIN server-side, and rejects cross-origin writes", async () => {
+  it("requires authentication, checks passwords server-side, and rejects cross-origin writes", async () => {
     expect((await request("operator")).status).toBe(401);
-    expect((await request("login", "", { id: "OP-104", pin: "0000" })).status).toBe(401);
+    expect(
+      (await request("login", "", { email: "nikos@wam.example", password: "wrong-password" }))
+        .status,
+    ).toBe(401);
     const crossSite = await handleWamRequest(
       new Request(`${origin}/api/wam/login`, {
         method: "POST",
         headers: { Origin: "https://other.example", "Content-Type": "application/json" },
-        body: JSON.stringify({ id: "OP-104", pin: "1234" }),
+        body: JSON.stringify({ email: "nikos@wam.example", password: "WamLocal!2026" }),
       }),
     );
     expect(crossSite.status).toBe(403);
-    const login = await request("login", "", { id: "OP-104", pin: "1234" });
+    const login = await request("login", "", {
+      email: "nikos@wam.example",
+      password: "WamLocal!2026",
+    });
     expect(login.status).toBe(200);
     expect(login.headers.get("set-cookie")).toContain("HttpOnly");
     const data = await (await request("operator", operatorCookie)).json();
@@ -101,7 +109,10 @@ describe.sequential("WAM v4 PostgreSQL backend", () => {
     const previous = process.env["NODE_ENV"];
     process.env["NODE_ENV"] = "production";
     try {
-      expect((await request("login", "", { id: "WAM-MANAGER-01", pin: "1234" })).status).toBe(403);
+      expect(
+        (await request("login", "", { email: "admin@wam.example", password: "WamLocal!2026" }))
+          .status,
+      ).toBe(403);
     } finally {
       process.env["NODE_ENV"] = previous;
     }

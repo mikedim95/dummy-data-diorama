@@ -13,8 +13,11 @@ npm run db:seed
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. Operator: `OP-104` or `OP-117`, PIN `1234`.
-Management: http://127.0.0.1:3000/auth, local PIN `1234`.
+Open http://127.0.0.1:3000. Everyone uses the same email/password form.
+Local accounts: `admin@wam.example`, `nikos@wam.example`, `eleni@wam.example`.
+Local password: `WamLocal!2026`, configurable with `WAM_LOCAL_PASSWORD`.
+The server queries the active account's role and opens its workspace.
+`/auth` redirects to the shared sign-in page.
 
 The default local database is PostgreSQL/PGlite, persisted to `.data/wam`; uploaded files are
 stored transactionally in the database. Docker is optional. Stop the server before running
@@ -56,4 +59,4 @@ accounts need a linked `USER_ACCOUNT` and cloud role grants, as documented.
 
 ## Render preview
 
-See [Render deployment and sign-in](docs/render.md). The hosted preview uses generated passwords and a managed PostgreSQL database; the local `1234` PIN is disabled there.
+See [Render deployment and sign-in](docs/render.md). The hosted preview uses generated passwords and a managed PostgreSQL database; local passwords are disabled there.

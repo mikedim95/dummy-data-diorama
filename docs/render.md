@@ -17,11 +17,18 @@ can subsequently be used to manage these same resources as a Blueprint.
 ## Access
 
 Hosted preview accounts use server-configured, generated passwords over HTTPS.
-They never accept the local `1234` PIN. There is no public signup or automatic
+They never accept the local sample password. There is no public signup or automatic
 promotion in preview mode.
 
-- Manager: `/auth`, account `WAM-MANAGER-01`.
-- Operator: `/`, accounts `OP-104` and `OP-117`.
+Everyone signs in at `/` with email and password. `/auth` redirects there.
+
+- `admin@wam.example`: management access from its database role.
+- `nikos@wam.example`, `eleni@wam.example`: operator workspaces from their database roles.
+
+The existing generated preview passwords remain valid. Identity/role are queried
+after authentication; no login choice or hardcoded manager identity is sent by the form.
+Migration 004 preserves account IDs and provisions salted password hashes in the
+private schema. The old ID/PIN and preview-specific login endpoints are removed.
 
 Passwords are stored as Render environment secrets, and initial access details are
 saved privately in the local workspace's ignored `.data/render-access.txt` file.

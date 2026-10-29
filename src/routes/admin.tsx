@@ -58,12 +58,12 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/admin")({
   validateSearch: (s): AdminSearch => searchSchema.parse(s) as AdminSearch,
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async () => {
     try {
       await wamRequest("session");
     } catch (error) {
       if ([401, 403].includes((error as { status?: number }).status ?? 0))
-        throw redirect({ to: "/auth", search: { redirect: location.href } });
+        throw redirect({ to: "/" });
       throw error;
     }
   },
@@ -92,7 +92,7 @@ function AdminGate() {
     const config = await wamRequest<{ localDemo: boolean; preview: boolean }>("config");
     await wamRequest("logout", {});
     if (!config.localDemo && !config.preview) await supabase.auth.signOut();
-    window.location.assign("/auth");
+    window.location.assign("/");
   };
   if (q.isPending)
     return (

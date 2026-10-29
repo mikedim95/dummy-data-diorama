@@ -501,6 +501,7 @@ Table DOCUMENT_LINK [headercolor: #A855F7] {
 
 
 Table USER_ACCOUNT [headercolor: #3B82F6] {
+  login_email varchar(255) [unique, note: 'Normalized sign-in email. Required for password accounts. Password hashes stay in wam_internal.password_credentials.']
   id uuid [pk, default: `gen_random_uuid()`]
   employee_id uuid [not null]
   auth_provider varchar(80) [not null]
