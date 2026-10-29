@@ -12,7 +12,7 @@ export function MaintenanceReminder({
   index = 0,
 }: {
   item: MaintenanceItem;
-  state?: CheckState;
+  state?: CheckState | undefined;
   onChange: (v: CheckState | null) => void;
   allowSkip?: boolean;
   index?: number;

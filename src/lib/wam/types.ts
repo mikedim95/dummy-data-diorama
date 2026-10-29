@@ -21,8 +21,8 @@ export type Activity = {
   at: string;
   by: string;
   type: "comment" | "photo" | "status";
-  text?: string;
-  photos?: string[];
+  text?: string | undefined;
+  photos?: string[] | undefined;
 };
 export type Task = {
   id: string;

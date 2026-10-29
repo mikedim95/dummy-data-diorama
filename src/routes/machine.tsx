@@ -16,7 +16,7 @@ export const Route = createFileRoute("/machine")({
 function MachineOverview() {
   const { machine } = useWam();
   if (!machine) return null;
-  const st = { operational: ["Operational", "text-success bg-success"], attention: ["Needs attention", "text-warning bg-warning"], down: ["Out of service", "text-critical bg-critical"] }[machine.status];
+  const st: [string, string] = ({ operational: ["Operational", "text-success bg-success"], attention: ["Needs attention", "text-warning bg-warning"], down: ["Out of service", "text-critical bg-critical"] } as Record<string, [string, string]>)[machine.status]!;
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div className="bg-walnut px-4 py-3">
@@ -25,8 +25,8 @@ function MachineOverview() {
       </div>
       <div className="grid grid-cols-2 gap-3 p-4 text-xs">
         <div className="col-span-2 flex items-center gap-2">
-          <span className={cn("size-2 rounded-full", st[1].split(" ")[1])} />
-          <span className={cn("font-semibold", st[1].split(" ")[0])}>{st[0]}</span>
+          <span className={cn("size-2 rounded-full", st[1].split(" ")[1] ?? "")} />
+          <span className={cn("font-semibold", st[1].split(" ")[0] ?? "")}>{st[0]}</span>
           <span className="ml-auto font-mono text-muted-foreground">{machine.code}</span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground"><Cpu className="size-3.5" /> {machine.model}</div>

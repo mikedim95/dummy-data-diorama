@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { canClaim, canFinishShift, sortTasks } from "./logic";
-import { TASKS, MAINTENANCE } from "./mock-data";
+import { TASKS as T, MAINTENANCE } from "./mock-data";
+import type { Task } from "./types";
+const TASKS = T as [Task, Task, ...Task[]];
 
 describe("WAM rules", () => {
   it("sorts active first, then pending by priority", () => {
@@ -16,7 +18,7 @@ describe("WAM rules", () => {
     expect(canClaim(TASKS[1], "OP-104", [a, TASKS[1]]).ok).toBe(false);
   });
   it("requires a handover note when work is still active", () => {
-    const items = MAINTENANCE["WAM-CNC-01"];
+    const items = MAINTENANCE["WAM-CNC-01"]!;
     const checks = Object.fromEntries(items.filter((i) => i.phase === "end").map((i) => [i.id, "done" as const]));
     expect(canFinishShift(items, checks, true, "")).toBe(false);
     expect(canFinishShift(items, checks, true, "Left at profile pass 2")).toBe(true);
