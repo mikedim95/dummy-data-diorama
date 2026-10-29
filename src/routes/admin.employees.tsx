@@ -47,7 +47,7 @@ function Employees() {
       <div className="mt-5 grid gap-4 xl:grid-cols-3">
         <Panel title="Daily attendance" className="xl:col-span-1">
           <div className="h-64">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chart}>
                 <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 6" vertical={false} />
                 <XAxis dataKey="label" stroke={chartTheme.axis} fontSize={10} tickLine={false} axisLine={false} minTickGap={10} />

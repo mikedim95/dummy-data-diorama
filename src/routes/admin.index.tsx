@@ -46,7 +46,7 @@ function Overview() {
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="Jobs completed over time" action={<span className="text-[11px] text-muted-foreground">Click a point for that day's jobs</span>}>
           <div className="h-72">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={ov.series} onClick={(e) => { const p = ov.series[Number(e?.activeTooltipIndex ?? -1)]; if (p) open(`day:${p.key}${range === "90" ? "W" : ""}`); }} className="cursor-pointer">
                 <defs>
                   <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--gold)" stopOpacity={0.45} /><stop offset="100%" stopColor="var(--gold)" stopOpacity={0} /></linearGradient>
@@ -65,7 +65,7 @@ function Overview() {
 
         <Panel title="Requires attention" wood action={<span className="text-[11px] text-gold">{ov.alerts.length}</span>}>
           {ov.alerts.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No critical operational issues detected.</p> : (
-            <ul className="space-y-2">
+            <ul className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
               {ov.alerts.map((a) => {
                 const Icon = a.sev === "critical" ? ShieldAlert : a.sev === "warning" ? AlertTriangle : Info;
                 return (
@@ -89,7 +89,7 @@ function Overview() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Panel title="Orders by status" action={<button className="text-[11px] text-muted-foreground hover:text-foreground" onClick={() => go("/admin/orders", { f: "cancelled" })}>{ov.cancelled} cancelled →</button>}>
           <div className="h-64">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={ov.pipeline.map((p) => ({ ...p, label: ORDER_STATUS[p.status] }))} layout="vertical" margin={{ left: 8 }}>
                 <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 6" horizontal={false} />
                 <XAxis type="number" stroke={chartTheme.axis} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
@@ -106,7 +106,7 @@ function Overview() {
 
         <Panel title="Work assigned by machine" action={<span className="text-[11px] text-muted-foreground">Job counts, not utilisation</span>}>
           <div className="h-64">
-            <ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={ov.workload} layout="vertical" margin={{ left: 8 }}>
                 <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 6" horizontal={false} />
                 <XAxis type="number" stroke={chartTheme.axis} fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} />
@@ -124,7 +124,7 @@ function Overview() {
         {MANAGER.canSeeFinance && (
           <Panel title="Sales and expenses · last 6 months" action={<span className="text-[11px] text-muted-foreground">Sales net of refunds</span>}>
             <div className="h-64">
-              <ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={ov.months} onClick={(e) => { const m = ov.months[Number(e?.activeTooltipIndex ?? -1)]; if (m) go("/admin/finance", { f: `month:${m.key}` }); }} className="cursor-pointer">
                   <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 6" vertical={false} />
                   <XAxis dataKey="label" stroke={chartTheme.axis} fontSize={11} tickLine={false} axisLine={false} />

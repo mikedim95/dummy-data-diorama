@@ -48,7 +48,7 @@ function Finance() {
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="Monthly sales trend">
-          <div className="h-56"><ResponsiveContainer><BarChart data={ov.months} onClick={(e) => { const m = ov.months[Number(e?.activeTooltipIndex ?? -1)]; if (m) go("/admin/finance", { f: `month:${m.key}` }); }} className="cursor-pointer">
+          <div className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={ov.months} onClick={(e) => { const m = ov.months[Number(e?.activeTooltipIndex ?? -1)]; if (m) go("/admin/finance", { f: `month:${m.key}` }); }} className="cursor-pointer">
             <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 6" vertical={false} /><XAxis dataKey="label" stroke={chartTheme.axis} fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke={chartTheme.axis} fontSize={11} width={44} tickLine={false} axisLine={false} tickFormatter={(v) => `€${Math.round(v / 1000)}k`} />
             <Tooltip contentStyle={chartTheme.tooltip} cursor={{ fill: "var(--elevated)" }} formatter={(v) => eur(Number(v))} />
@@ -56,7 +56,7 @@ function Finance() {
           </BarChart></ResponsiveContainer></div>
         </Panel>
         <Panel title="Expenses by category · 6 months">
-          <div className="h-56"><ResponsiveContainer><PieChart>
+          <div className="h-56"><ResponsiveContainer width="100%" height="100%"><PieChart>
             <Pie data={cats} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="var(--surface)" className="cursor-pointer" onClick={() => go("/admin/finance", { f: "expense" })}>
               {cats.map((c, i) => <Cell key={c.name} fill={PALETTE[i % PALETTE.length]!} />)}
             </Pie><Tooltip contentStyle={chartTheme.tooltip} formatter={(v) => eur(Number(v))} />
@@ -64,7 +64,7 @@ function Finance() {
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{cats.map((c, i) => <span key={c.name} className="inline-flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />{c.name}</span>)}</div>
         </Panel>
         <Panel title="Sales: paid vs outstanding">
-          <div className="h-56"><ResponsiveContainer><PieChart>
+          <div className="h-56"><ResponsiveContainer width="100%" height="100%"><PieChart>
             <Pie data={paidVsOut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="var(--surface)" className="cursor-pointer" onClick={(d) => go("/admin/finance", { f: (d as { name: string }).name === "Outstanding" ? "receivable" : "sale" })}>
               <Cell fill="var(--success)" /><Cell fill="var(--warning)" />
             </Pie><Tooltip contentStyle={chartTheme.tooltip} formatter={(v) => eur(Number(v))} />
