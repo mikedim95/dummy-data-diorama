@@ -1,4 +1,5 @@
 export const greek: Record<string, string> = {
+  " · Every {0} days": " · Ανά {0} ημέρες",
   "{0} checks": "{0} έλεγχοι",
   "Needs attention": "Χρειάζεται προσοχή",
   "Good morning": "Καλημέρα",

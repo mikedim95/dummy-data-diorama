@@ -67,6 +67,9 @@ describe("WAM English and Greek", () => {
       "Έπρεπε να ολοκληρωθεί πριν από 2 ημέρες (ανά 7 ημέρες).",
     );
     expect(translate("Stage 2 of 4")).toBe("Στάδιο 2 από 4");
+    expect(translate("CNC Router 01 — Spindle lubrication overdue")).toBe(
+      "Φρέζα CNC 01 — Λίπανση ατράκτου εκπρόθεσμο",
+    );
     expect(translate("Insufficient stock at source location")).toBe(
       "Ανεπαρκές απόθεμα στην τοποθεσία προέλευσης",
     );

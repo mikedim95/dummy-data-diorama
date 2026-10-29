@@ -58,7 +58,7 @@ export function translate(source: string, ...values: unknown[]): string {
       if (match)
         return (
           (Number(match[1]) === 1 ? greekSingular[pattern.key] : undefined) ?? pattern.translation
-        ).replace(/\{(\d+)\}/g, (_, index: string) => match[Number(index) + 1] ?? "");
+        ).replace(/\{(\d+)\}/g, (_, index: string) => translate(match[Number(index) + 1] ?? ""));
     }
     if (source.includes(" · "))
       return source
@@ -67,7 +67,11 @@ export function translate(source: string, ...values: unknown[]): string {
         .join(" · ");
   }
   return template.replace(/\{(\d+)\}/g, (match, index: string) =>
-    values[Number(index)] == null ? match : String(values[Number(index)]),
+    values[Number(index)] == null
+      ? match
+      : typeof values[Number(index)] === "string"
+        ? translate(String(values[Number(index)]))
+        : String(values[Number(index)]),
   );
 }
 const patterns = Object.entries(greek)

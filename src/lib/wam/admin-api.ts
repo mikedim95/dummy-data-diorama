@@ -138,7 +138,7 @@ export function useOverview(range: RangeKey) {
       const js = D.JOBS.filter((j) => j.machineCode === m.code);
       return {
         code: m.code,
-        name: m.name,
+        name: t(m.name),
         pending: js.filter((j) => j.status === "pending" || j.status === "blocked").length,
         active: js.filter((j) => j.status === "active").length,
         completed: completedJobsIn(js, w.start, w.end).length,
@@ -236,7 +236,7 @@ export function useOverview(range: RangeKey) {
         body:
           low
             .slice(0, 2)
-            .map((x) => x.m.name)
+            .map((x) => t(x.m.name))
             .join(", ") + (low.length > 2 ? "…" : ""),
         action: "View inventory",
         to: "/admin/inventory",
