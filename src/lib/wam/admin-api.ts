@@ -1,17 +1,31 @@
 // Single data boundary for the management dashboard. Today it reads DEMO data;
 // swap these functions for server queries (with manager role checks) later.
 import { useMemo } from "react";
-import * as D from "./admin-data";
+import type * as Data from "./admin-data";
 import {
   attendanceToday, completedJobsIn, costs, delta, isOverdue, IN_PRODUCTION, lowStock, netSales,
   planNextDue, planState, receivables, payables, windows, type RangeKey, DAY, startOfDay, outstanding,
 } from "./admin-logic";
 
 export const DEMO_MODE = true;
-/** Demo manager. In production this comes from USER_ACCOUNT role and is checked server-side. */
-export const MANAGER = { name: "Alexandros Mavros", role: "Owner", canSeeFinance: true };
 
-export const db = D;
+type Snapshot = {
+  CUSTOMERS: typeof Data.CUSTOMERS; ADMIN_MACHINES: typeof Data.ADMIN_MACHINES; EMPLOYEES: typeof Data.EMPLOYEES;
+  ATTENDANCE: typeof Data.ATTENDANCE; MAINTENANCE_PLANS: typeof Data.MAINTENANCE_PLANS; MAINTENANCE_RECORDS: typeof Data.MAINTENANCE_RECORDS;
+  ORDERS: typeof Data.ORDERS; JOBS: typeof Data.JOBS; MATERIALS: typeof Data.MATERIALS; STOCK_BALANCES: typeof Data.STOCK_BALANCES;
+  STOCK_MOVEMENTS: typeof Data.STOCK_MOVEMENTS; FINANCIAL_RECORDS: typeof Data.FINANCIAL_RECORDS; DOCUMENTS: typeof Data.DOCUMENTS;
+};
+/** Filled from the server (role-checked) by the /admin layout before any page renders. */
+export const db = {} as Snapshot;
+const D = db;
+/** Signed-in manager. canSeeFinance mirrors the server's decision; it only hides UI — the server already withheld the data. */
+export const MANAGER = { name: "", role: "Manager", canSeeFinance: false };
+export function loadSnapshot(data: Snapshot, email: string, canSeeFinance: boolean) {
+  Object.assign(db, data);
+  MANAGER.name = email;
+  MANAGER.role = canSeeFinance ? "Manager · Finance" : "Manager";
+  MANAGER.canSeeFinance = canSeeFinance;
+}
 export const customer = (id: string) => D.CUSTOMERS.find((c) => c.id === id);
 export const order = (id: string) => D.ORDERS.find((o) => o.id === id);
 export const machine = (code: string) => D.ADMIN_MACHINES.find((m) => m.code === code);
