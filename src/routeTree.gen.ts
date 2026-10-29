@@ -10,16 +10,30 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as MachineRouteImport } from './routes/machine'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ShiftRouteImport } from './routes/shift'
 import { Route as WorkRouteImport } from './routes/work'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
+import { Route as AdminEmployeesRouteImport } from './routes/admin.employees'
+import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
+import { Route as AdminInventoryRouteImport } from './routes/admin.inventory'
+import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
+import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminProductionRouteImport } from './routes/admin.production'
 import { Route as TaskIdRouteImport } from './routes/task.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MachineRoute = MachineRouteImport.update({
@@ -47,6 +61,46 @@ const WorkRoute = WorkRouteImport.update({
   path: '/work',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEmployeesRoute = AdminEmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFinanceRoute = AdminFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInventoryRoute = AdminInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMachinesRoute = AdminMachinesRouteImport.update({
+  id: '/machines',
+  path: '/machines',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductionRoute = AdminProductionRouteImport.update({
+  id: '/production',
+  path: '/production',
+  getParentRoute: () => AdminRoute,
+} as any)
 const TaskIdRoute = TaskIdRouteImport.update({
   id: '/task/$id',
   path: '/task/$id',
@@ -55,12 +109,21 @@ const TaskIdRoute = TaskIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/machine': typeof MachineRoute
   '/profile': typeof ProfileRoute
   '/scan': typeof ScanRoute
   '/shift': typeof ShiftRoute
   '/work': typeof WorkRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/employees': typeof AdminEmployeesRoute
+  '/admin/finance': typeof AdminFinanceRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,37 +132,94 @@ export interface FileRoutesByTo {
   '/scan': typeof ScanRoute
   '/shift': typeof ShiftRoute
   '/work': typeof WorkRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/employees': typeof AdminEmployeesRoute
+  '/admin/finance': typeof AdminFinanceRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/machine': typeof MachineRoute
   '/profile': typeof ProfileRoute
   '/scan': typeof ScanRoute
   '/shift': typeof ShiftRoute
   '/work': typeof WorkRoute
+  '/admin/documents': typeof AdminDocumentsRoute
+  '/admin/employees': typeof AdminEmployeesRoute
+  '/admin/finance': typeof AdminFinanceRoute
+  '/admin/inventory': typeof AdminInventoryRoute
+  '/admin/machines': typeof AdminMachinesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/machine' | '/profile' | '/scan' | '/shift' | '/work' | '/task/$id'
+    | '/'
+    | '/admin'
+    | '/machine'
+    | '/profile'
+    | '/scan'
+    | '/shift'
+    | '/work'
+    | '/admin/documents'
+    | '/admin/employees'
+    | '/admin/finance'
+    | '/admin/inventory'
+    | '/admin/machines'
+    | '/admin/orders'
+    | '/admin/production'
+    | '/task/$id'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/machine' | '/profile' | '/scan' | '/shift' | '/work' | '/task/$id'
-  id:
-    | '__root__'
+  to:
     | '/'
     | '/machine'
     | '/profile'
     | '/scan'
     | '/shift'
     | '/work'
+    | '/admin/documents'
+    | '/admin/employees'
+    | '/admin/finance'
+    | '/admin/inventory'
+    | '/admin/machines'
+    | '/admin/orders'
+    | '/admin/production'
     | '/task/$id'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/machine'
+    | '/profile'
+    | '/scan'
+    | '/shift'
+    | '/work'
+    | '/admin/documents'
+    | '/admin/employees'
+    | '/admin/finance'
+    | '/admin/inventory'
+    | '/admin/machines'
+    | '/admin/orders'
+    | '/admin/production'
+    | '/task/$id'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   MachineRoute: typeof MachineRoute
   ProfileRoute: typeof ProfileRoute
   ScanRoute: typeof ScanRoute
@@ -115,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/machine': {
@@ -152,6 +279,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/documents': {
+      id: '/admin/documents'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/employees': {
+      id: '/admin/employees'
+      path: '/employees'
+      fullPath: '/admin/employees'
+      preLoaderRoute: typeof AdminEmployeesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/finance': {
+      id: '/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AdminFinanceRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inventory': {
+      id: '/admin/inventory'
+      path: '/inventory'
+      fullPath: '/admin/inventory'
+      preLoaderRoute: typeof AdminInventoryRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/machines': {
+      id: '/admin/machines'
+      path: '/machines'
+      fullPath: '/admin/machines'
+      preLoaderRoute: typeof AdminMachinesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/production': {
+      id: '/admin/production'
+      path: '/production'
+      fullPath: '/admin/production'
+      preLoaderRoute: typeof AdminProductionRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/task/$id': {
       id: '/task/$id'
       path: '/task/$id'
@@ -162,8 +345,33 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminDocumentsRoute: typeof AdminDocumentsRoute
+  AdminEmployeesRoute: typeof AdminEmployeesRoute
+  AdminFinanceRoute: typeof AdminFinanceRoute
+  AdminInventoryRoute: typeof AdminInventoryRoute
+  AdminMachinesRoute: typeof AdminMachinesRoute
+  AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminProductionRoute: typeof AdminProductionRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminDocumentsRoute: AdminDocumentsRoute,
+  AdminEmployeesRoute: AdminEmployeesRoute,
+  AdminFinanceRoute: AdminFinanceRoute,
+  AdminInventoryRoute: AdminInventoryRoute,
+  AdminMachinesRoute: AdminMachinesRoute,
+  AdminOrdersRoute: AdminOrdersRoute,
+  AdminProductionRoute: AdminProductionRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   MachineRoute: MachineRoute,
   ProfileRoute: ProfileRoute,
   ScanRoute: ScanRoute,

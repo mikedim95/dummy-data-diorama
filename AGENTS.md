@@ -12,3 +12,4 @@
 ## WAM operator app
 - All data access goes through `src/lib/wam/store.tsx` (demo data from `mock-data.ts`, persisted to localStorage) — swap to the real DB there only, so screens stay unchanged.
 - Business rules (task sort, claim checks, shift finish) live as pure functions in `src/lib/wam/logic.ts` with tests.
+- Management dashboard lives under `/admin`; all its data goes through `src/lib/wam/admin-api.ts` (demo data in `admin-data.ts`), KPI rules in `admin-logic.ts` with tests. Drill-down detail is the `d=type:id` search param rendered by `DetailDrawer`, so details are shareable and Back works.
