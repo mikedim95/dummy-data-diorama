@@ -192,8 +192,8 @@ for (let d = -45; d <= 0; d++) {
 }
 
 // Stock movements: deliveries plus consumption linked to completed jobs.
-export const STOCK_MOVEMENTS: StockMovement[] = (JOBS.filter((j) => j.materialId && j.completedAt && new Date(j.completedAt).getTime() > today0 - 60 * DAY)
-  .map((j) => ({ id: `SM-${j.id}`, materialId: j.materialId!, at: j.completedAt!, type: "out" as const, qty: -(j.materialQty ?? 1), jobId: j.id, note: `Issued to ${j.id}` }) as StockMovement)) as StockMovement[]
+export const STOCK_MOVEMENTS: StockMovement[] = ([] as StockMovement[]).concat(JOBS.filter((j) => j.materialId && j.completedAt && new Date(j.completedAt).getTime() > today0 - 60 * DAY)
+  .map((j): StockMovement => ({ id: `SM-${j.id}`, materialId: j.materialId!, at: j.completedAt!, type: "out", qty: -(j.materialQty ?? 1), jobId: j.id, note: `Issued to ${j.id}` })))
   .concat(MATERIALS.flatMap((m, i) => [{ id: `SM-IN-${m.id}`, materialId: m.id, at: dayISO(-int(5, 50), 11), type: "in" as const, qty: m.minQty * 2, jobId: undefined, note: `Delivery from ${m.supplier}` }, ...(i % 4 === 0 ? [{ id: `SM-ADJ-${m.id}`, materialId: m.id, at: dayISO(-int(1, 20), 17), type: "adjust" as const, qty: -1, jobId: undefined, note: "Stock count correction" }] : [])] as StockMovement[]))
   .sort((a, b) => b.at.localeCompare(a.at));
 
