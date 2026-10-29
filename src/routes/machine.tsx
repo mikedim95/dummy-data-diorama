@@ -13,7 +13,7 @@ export const Route = createFileRoute("/machine")({
   component: MachinePage,
 });
 
-export function MachineOverview() {
+function MachineOverview() {
   const { machine } = useWam();
   if (!machine) return null;
   const st = { operational: ["Operational", "text-success bg-success"], attention: ["Needs attention", "text-warning bg-warning"], down: ["Out of service", "text-critical bg-critical"] }[machine.status];
