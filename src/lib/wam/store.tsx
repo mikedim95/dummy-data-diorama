@@ -189,6 +189,11 @@ export function WamProvider({ children }: { children: ReactNode }) {
         generation.current++;
         try {
           await wamRequest("shift/finish", { handover });
+          const config = await wamRequest<{ localDemo: boolean; preview: boolean }>("config");
+          if (!config.localDemo && !config.preview) {
+            const { supabase } = await import("../../integrations/supabase/client");
+            await supabase.auth.signOut();
+          }
           setState(initial);
         } finally {
           pending.current--;

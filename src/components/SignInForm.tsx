@@ -7,11 +7,11 @@ import { wamRequest } from "@/lib/wam/client-api";
 import { translate as t, useLanguage } from "@/lib/i18n";
 
 type Session = {
-  destination: "/admin" | "/scan" | "/work";
+  destination: "/admin" | "/profile" | "/scan" | "/work";
   session?: { access_token: string; refresh_token: string };
 };
 function enter(session: Session) {
-  if (!["/admin", "/scan", "/work"].includes(session.destination))
+  if (!["/admin", "/profile", "/scan", "/work"].includes(session.destination))
     throw new Error("Your account does not have access to a workspace.");
   window.location.replace(session.destination);
 }

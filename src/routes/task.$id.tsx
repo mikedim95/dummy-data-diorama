@@ -123,8 +123,10 @@ function TaskPage() {
 
   if (!task) {
     return (
-      <OperatorLayout back={{ to: "/work" }}>
-        <p className="text-muted-foreground">{t("This task no longer exists.")}</p>
+      <OperatorLayout needMachine back={{ to: "/work" }}>
+        <p className="text-muted-foreground">
+          {t("This task is not available on the scanned machine.")}
+        </p>
       </OperatorLayout>
     );
   }

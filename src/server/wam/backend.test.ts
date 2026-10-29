@@ -18,13 +18,33 @@ let managerCookie: string;
 const origin = "http://localhost:3000";
 const runtime = globalThis as typeof globalThis & { wamDatabase?: Promise<Database> };
 async function request(path: string, cookie = "", input?: unknown, method = "POST") {
-  return handleWamRequest(
+  const response = await handleWamRequest(
     new Request(`${origin}/api/wam/${path}`, {
       method: input === undefined ? "GET" : method,
       headers: { Cookie: cookie, Origin: origin, "Content-Type": "application/json" },
       ...(input === undefined ? {} : { body: JSON.stringify(input) }),
     }),
   );
+  const jar = new Map(
+    cookie
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const split = part.indexOf("=");
+        return [part.slice(0, split), part.slice(split + 1)] as [string, string];
+      }),
+  );
+  for (const value of response.headers.getSetCookie()) {
+    const pair = value.split(";")[0]!;
+    const split = pair.indexOf("=");
+    if (value.includes("Max-Age=0")) jar.delete(pair.slice(0, split));
+    else jar.set(pair.slice(0, split), pair.slice(split + 1));
+  }
+  const updated = [...jar].map(([key, value]) => `${key}=${value}`).join("; ");
+  if (cookie === operatorCookie) operatorCookie = updated;
+  if (cookie === managerCookie) managerCookie = updated;
+  return response;
 }
 const accountFor = (cookie: string) =>
   authenticate(db, new Request(origin, { headers: { Cookie: cookie } }));

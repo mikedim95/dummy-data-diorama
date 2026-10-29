@@ -4,6 +4,7 @@ import { type Database, withActor } from "./database";
 import { insert } from "./seed";
 import {
   readOpenShift,
+  requireScannedShift,
   readShiftChecks,
   readMaintenance,
   readJobs,
@@ -85,6 +86,7 @@ export async function changeShift(
         ]);
       return;
     }
+    await requireScannedShift(tx, account);
     const plan = (
       await tx.query('SELECT * FROM "MAINTENANCE_PLAN" WHERE id=$1 FOR UPDATE', [action.id])
     ).rows[0];
@@ -159,7 +161,7 @@ export async function finishShift(db: Database, account: Account, handover: stri
   requireRole(account, ["PRODUCTION", "ADMIN", "MANAGER"]);
   await withActor(db, account.id, "Shift handover and sign out", async (tx) => {
     await tx.query('SELECT id FROM "EMPLOYEE" WHERE id=$1 FOR UPDATE', [account.employee_id]);
-    const shift = await readOpenShift(tx, account);
+    const shift = await requireScannedShift(tx, account);
     if (!shift) throw new ApiError(409, "There is no open shift.");
     const checks = await readShiftChecks(tx, shift["id"]);
     const items = ((await readMaintenance(tx))[shift["machine_code"]] ?? []).filter(
@@ -199,7 +201,7 @@ export async function mutateTask(
   await withActor(db, account.id, `Operator task ${action}`, async (tx) => {
     // Serialize all claims by an employee, including races between different jobs in two tabs.
     await tx.query('SELECT id FROM "EMPLOYEE" WHERE id=$1 FOR UPDATE', [account.employee_id]);
-    const shift = await readOpenShift(tx, account);
+    const shift = await requireScannedShift(tx, account);
     if (!shift) throw new ApiError(409, "Sign in to start a shift first.");
     const row = (await tx.query('SELECT * FROM "JOB" WHERE id=$1 FOR UPDATE', [id])).rows[0];
     if (!row) throw new ApiError(404, "Task not found.");

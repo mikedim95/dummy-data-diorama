@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { z } from "zod";
@@ -6,6 +7,9 @@ import {
   ApiError,
   authenticate,
   clearSessionCookie,
+  clearStationCookie,
+  stationCookie,
+  sessionMode,
   localDemoEnabled,
   passwordLogin,
   cloudPasswordLogin,
@@ -16,7 +20,7 @@ import {
   requireRole,
   sessionCookie,
 } from "./auth";
-import { operatorSnapshot } from "./read-models";
+import { operatorSnapshot, readOpenShift, requireScannedShift } from "./read-models";
 import { changeShift, finishShift, mutateTask, startShift } from "./actions";
 import { insert } from "./seed";
 import { authorizeDocument } from "./documents";
@@ -29,8 +33,17 @@ const mutation = z.object({
   text: note.optional(),
   photos: z.array(z.string().max(4300000)).max(3).optional(),
 });
-const json = (value: unknown, status = 200, headers?: Record<string, string>) =>
-  Response.json(value, { status, headers: { "Cache-Control": "no-store", ...headers } });
+const json = (value: unknown, status = 200, headers?: HeadersInit) => {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Cache-Control", "no-store");
+  return Response.json(value, { status, headers: responseHeaders });
+};
+const signedOutHeaders = () => {
+  const headers = new Headers();
+  headers.append("Set-Cookie", clearSessionCookie);
+  headers.append("Set-Cookie", clearStationCookie);
+  return headers;
+};
 async function body(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new ApiError(415, "Send application/json.");
@@ -101,21 +114,19 @@ export async function handleWamRequest(request: Request): Promise<Response> {
           }
         : await cloudPasswordLogin(db, request, input.email, input.password);
       if (result.account.role === "PRODUCTION") await startShift(db, result.account);
+      const headers = new Headers();
+      headers.append(
+        "Set-Cookie",
+        sessionCookie(result.account.id, secureRequest(request), sessionMode(result.account)),
+      );
+      headers.append("Set-Cookie", clearStationCookie);
       return json(
         {
           ...(await accountSession(db, result.account)),
           ...(result.session ? { session: result.session } : {}),
         },
         200,
-        passwordMode
-          ? {
-              "Set-Cookie": sessionCookie(
-                result.account.id,
-                secureRequest(request),
-                process.env["WAM_PREVIEW_MODE"] === "true" ? "preview" : "local",
-              ),
-            }
-          : undefined,
+        headers,
       );
     }
     const account = await authenticate(db, request);
@@ -151,8 +162,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
       throw new ApiError(405, "Method not allowed for this record collection.");
     }
     if (path === "session" && method === "GET") return json(await accountSession(db, account));
-    if (path === "logout" && method === "POST")
-      return json({ ok: true }, 200, { "Set-Cookie": clearSessionCookie });
+    if (path === "logout" && method === "POST") return json({ ok: true }, 200, signedOutHeaders());
     if (path === "operator" && method === "GET") {
       requireRole(account, ["PRODUCTION", "ADMIN", "MANAGER"]);
       return json(await operatorSnapshot(db, account));
@@ -162,9 +172,30 @@ export async function handleWamRequest(request: Request): Promise<Response> {
       return json(await operatorSnapshot(db, account));
     }
     if (path === "machine" && method === "POST") {
-      const { code } = z.object({ code: z.string().max(40) }).parse(await body(request));
+      const { code } = z
+        .object({ code: z.string().max(40) })
+        .strict()
+        .parse(await body(request));
       await changeShift(db, account, { type: "machine", code });
-      return json(await operatorSnapshot(db, account));
+      const shift = await readOpenShift(db, account);
+      if (!shift?.["machine_id"] || shift["machine_code"] !== code)
+        throw new ApiError(409, "Scan a machine first.");
+      const nonce = account.loginSession ?? randomBytes(24).toString("base64url");
+      const station = { shiftId: shift["id"] as string, machineId: shift["machine_id"] as string };
+      const headers = new Headers();
+      headers.append(
+        "Set-Cookie",
+        sessionCookie(account.id, secureRequest(request), sessionMode(account), nonce),
+      );
+      headers.append(
+        "Set-Cookie",
+        stationCookie(account, station.shiftId, station.machineId, nonce, secureRequest(request)),
+      );
+      return json(
+        await operatorSnapshot(db, { ...account, loginSession: nonce, station }),
+        200,
+        headers,
+      );
     }
     if (path === "checks" && method === "POST") {
       const input = z
@@ -181,7 +212,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
     if (path === "shift/finish" && method === "POST") {
       const { handover } = z.object({ handover: note }).parse(await body(request));
       await finishShift(db, account, handover);
-      return json({ ok: true }, 200, { "Set-Cookie": clearSessionCookie });
+      return json({ ok: true }, 200, signedOutHeaders());
     }
     const task = /^tasks\/([^/]+)\/(claim|activity|complete)$/.exec(path);
     if (task && method === "POST") {
@@ -378,14 +409,16 @@ export async function handleWamRequest(request: Request): Promise<Response> {
         })
         .strict()
         .parse(await body(request));
+      const scanned =
+        account.role === "PRODUCTION" ? await requireScannedShift(db, account) : undefined;
       if (
         account.role === "PRODUCTION" &&
         (!["CONSUMPTION", "RETURN"].includes(input.movement_type) ||
           !input.job_id ||
           !(
             await db.query(
-              "SELECT 1 FROM \"JOB\" WHERE id=$1 AND responsible_employee_id=$2 AND status='IN_PROGRESS'",
-              [input.job_id, account.employee_id],
+              "SELECT 1 FROM \"JOB\" WHERE id=$1 AND responsible_employee_id=$2 AND machine_id=$3 AND status='IN_PROGRESS'",
+              [input.job_id, account.employee_id, scanned?.["machine_id"]],
             )
           ).rows.length)
       )

@@ -1,6 +1,6 @@
 import type { Database, Row } from "./database";
 import type { Account } from "./auth";
-import { requireRole, localDemoEnabled, previewEnabled } from "./auth";
+import { ApiError, requireRole, localDemoEnabled, previewEnabled } from "./auth";
 import type { Activity, MaintenanceItem, Task } from "../../lib/wam/types";
 import type { Snapshot } from "../../lib/wam/admin-api";
 
@@ -33,9 +33,10 @@ const jobStatus = (row: Row) =>
         ? ("blocked" as const)
         : ("pending" as const);
 
-export async function readJobs(db: Database) {
+export async function readJobs(db: Database, machineId?: string) {
   return (
-    await db.query(`SELECT j.*,o.order_number,o.title AS order_title,o.quantity,o.status AS order_status,o.approval_required,o.approved_template_id,o.template_id,o.customer_approved_at,o.due_at,
+    await db.query(
+      `SELECT j.*,o.order_number,o.title AS order_title,o.quantity,o.status AS order_status,o.approval_required,o.approved_template_id,o.template_id,o.customer_approved_at,o.due_at,
     c.name AS customer_name,m.equipment_code,m.status AS machine_status,e.employee_code,t.design_file,t.revision,
     EXISTS(SELECT 1 FROM "JOB" previous WHERE previous.order_id=j.order_id AND previous.sequence_no<j.sequence_no AND previous.status<>'COMPLETED') AS preceding,
     (SELECT count(*)::int FROM "JOB" sibling WHERE sibling.order_id=j.order_id) AS step_count,
@@ -50,7 +51,10 @@ export async function readJobs(db: Database) {
       AND EXISTS(SELECT 1 FROM "DOCUMENT_LINK" l WHERE l.document_id=d.id AND (l.job_id=j.id OR l.template_id=o.template_id OR l.machine_id=j.machine_id))),'[]'::jsonb) AS reference_files
     FROM "JOB" j JOIN "CUSTOMER_ORDER" o ON o.id=j.order_id JOIN "CUSTOMER" c ON c.id=o.customer_id
     LEFT JOIN "MACHINE" m ON m.id=j.machine_id LEFT JOIN "EMPLOYEE" e ON e.id=j.responsible_employee_id LEFT JOIN "TEMPLATE" t ON t.id=o.template_id
-    ORDER BY o.submitted_at DESC,j.sequence_no`)
+    ${machineId ? "WHERE j.machine_id=$1" : ""}
+    ORDER BY o.submitted_at DESC,j.sequence_no`,
+      machineId ? [machineId] : [],
+    )
   ).rows;
 }
 
@@ -141,6 +145,19 @@ export async function readOpenShift(db: Database, account: Account) {
     )
   ).rows[0];
 }
+export async function readScannedShift(db: Database, account: Account) {
+  const shift = await readOpenShift(db, account);
+  return shift &&
+    account.station?.shiftId === shift["id"] &&
+    account.station?.machineId === shift["machine_id"]
+    ? shift
+    : undefined;
+}
+export async function requireScannedShift(db: Database, account: Account) {
+  const shift = await readScannedShift(db, account);
+  if (!shift) throw new ApiError(409, "Scan a machine first.");
+  return shift;
+}
 export async function readShiftChecks(db: Database, shiftId: string) {
   const rows = (
     await db.query('SELECT plan_id,phase,state FROM "SHIFT_CHECK" WHERE shift_id=$1', [shiftId])
@@ -155,7 +172,13 @@ export async function readShiftChecks(db: Database, shiftId: string) {
   return result;
 }
 export async function operatorSnapshot(db: Database, account: Account) {
-  const shift = await readOpenShift(db, account);
+  const openShift = await readOpenShift(db, account);
+  const shift =
+    openShift &&
+    account.station?.shiftId === openShift["id"] &&
+    account.station?.machineId === openShift["machine_id"]
+      ? openShift
+      : undefined;
   const checks = shift
     ? await readShiftChecks(db, shift["id"])
     : { startChecks: {}, endChecks: {} };
@@ -164,6 +187,9 @@ export async function operatorSnapshot(db: Database, account: Account) {
       'SELECT m.*,l.name AS location_name FROM "MACHINE" m LEFT JOIN "LOCATION" l ON l.id=m.location_id WHERE m.is_active ORDER BY m.equipment_code',
     )
   ).rows;
+  const maintenance: Record<string, MaintenanceItem[]> = shift
+    ? { [shift["machine_code"]]: (await readMaintenance(db))[shift["machine_code"]] ?? [] }
+    : {};
   return {
     operator: {
       id: account.employee_code,
@@ -171,7 +197,7 @@ export async function operatorSnapshot(db: Database, account: Account) {
       role: account.job_title ?? account.role,
     },
     machineCode: shift?.["machine_code"] ?? null,
-    shiftStartedAt: iso(shift?.["started_at"]) ?? null,
+    shiftStartedAt: iso(openShift?.["started_at"]) ?? null,
     ...checks,
     machines: machines.map((m) => ({
       code: m["equipment_code"],
@@ -185,10 +211,12 @@ export async function operatorSnapshot(db: Database, account: Account) {
             ? ("attention" as const)
             : ("down" as const),
     })),
-    tasks: (await readJobs(db))
-      .filter((row) => !["CANCELLED", "DELIVERED"].includes(row["order_status"]))
-      .map(taskFromRow),
-    maintenance: await readMaintenance(db),
+    tasks: shift
+      ? (await readJobs(db, shift["machine_id"]))
+          .filter((row) => !["CANCELLED", "DELIVERED"].includes(row["order_status"]))
+          .map(taskFromRow)
+      : [],
+    maintenance,
     materialOptions: (
       await db.query(
         'SELECT id,name,unit,material_code FROM "MATERIAL" WHERE is_active ORDER BY name',

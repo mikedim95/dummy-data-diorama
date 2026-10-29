@@ -10,7 +10,7 @@ import { sortTasks } from "@/lib/wam/logic";
 import { meta } from "@/lib/wam/meta";
 
 export const Route = createFileRoute("/work")({
-  head: () => meta("Today's work", "Your assigned, active and completed jobs for today."),
+  head: () => meta("Machine work", "Work assigned to the scanned machine."),
   component: WorkPage,
 });
 
@@ -33,14 +33,17 @@ function WorkPage() {
 
   return (
     <OperatorLayout needMachine>
-      <h1 className="text-3xl font-extrabold">{t("Today's Work")}</h1>
+      <h1 className="text-3xl font-extrabold">{t("Machine work")}</h1>
+      <p className="mt-2 text-base font-semibold">
+        {tv(machine?.name)} <span className="font-mono text-xs text-brass">{machine?.code}</span>
+      </p>
       <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
         <span>{tv(date)}</span>
         <Link
           to="/machine"
           className="press inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs"
         >
-          <Wrench className="size-3.5 text-brass" /> {tv(machine?.name)}
+          <Wrench className="size-3.5 text-brass" /> {t("Machine checks")}
         </Link>
       </div>
 

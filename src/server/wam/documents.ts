@@ -1,3 +1,4 @@
+import { requireScannedShift } from "./read-models";
 import { createHash, randomUUID } from "node:crypto";
 import { ApiError, type Account } from "./auth";
 import type { Database } from "./database";
@@ -73,13 +74,14 @@ export async function authorizeDocument(
   if (["ADMIN", "MANAGER"].includes(account.role) && account.managerAccess === false)
     throw new ApiError(403, "Management permission is required.");
   if (account.role === "PRODUCTION") {
+    const shift = await requireScannedShift(db, account);
     const match = await db.query(
       `SELECT 1 FROM "DOCUMENT_LINK" l WHERE l.document_id=$1 AND (
       EXISTS(SELECT 1 FROM "JOB" j WHERE (j.id=l.job_id OR j.order_id=l.customer_order_id OR j.order_id IN (SELECT id FROM "CUSTOMER_ORDER" WHERE template_id=l.template_id))
-        AND (j.responsible_employee_id=$2 OR j.machine_id IN (SELECT machine_id FROM "OPERATOR_SHIFT" WHERE employee_id=$2 AND status='OPEN')))
-      OR l.machine_id IN (SELECT machine_id FROM "OPERATOR_SHIFT" WHERE employee_id=$2 AND status='OPEN')
-      OR l.maintenance_plan_id IN (SELECT p.id FROM "MAINTENANCE_PLAN" p JOIN "OPERATOR_SHIFT" s ON s.machine_id=p.machine_id WHERE s.employee_id=$2 AND s.status='OPEN')) LIMIT 1`,
-      [doc["id"], account.employee_id],
+        AND j.machine_id=$2)
+      OR l.machine_id=$2
+      OR l.maintenance_plan_id IN (SELECT p.id FROM "MAINTENANCE_PLAN" p WHERE p.machine_id=$2)) LIMIT 1`,
+      [doc["id"], shift["machine_id"]],
     );
     if (!match.rows.length)
       throw new ApiError(403, "This document is not linked to your work or selected machine.");

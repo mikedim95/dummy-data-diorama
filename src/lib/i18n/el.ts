@@ -1,4 +1,11 @@
 export const greek: Record<string, string> = {
+  "Scan a machine to enable Work.": "Σαρώστε ένα μηχάνημα για να ενεργοποιηθούν οι Εργασίες.",
+  "Operator navigation": "Πλοήγηση χειριστή",
+  "Machine work": "Εργασίες μηχανήματος",
+  "Work assigned to the scanned machine.": "Εργασίες που έχουν ανατεθεί στο σαρωμένο μηχάνημα.",
+  "Scan a machine first.": "Σαρώστε πρώτα ένα μηχάνημα.",
+  "This task is not available on the scanned machine.":
+    "Αυτή η εργασία δεν είναι διαθέσιμη στο σαρωμένο μηχάνημα.",
   "Sign in · WAM": "Σύνδεση · WAM",
   "Sign in to WAM with your email and password.":
     "Συνδεθείτε στο WAM με το email και τον κωδικό πρόσβασής σας.",

@@ -105,7 +105,7 @@ export function OperatorLayout({
                       {tv(date)} ·{tv(" ")}
                       {tv(
                         shiftStartedAt ? (
-                          <span className="text-success">On shift</span>
+                          <span className="text-success">{t("On shift")}</span>
                         ) : (
                           t("Off shift")
                         ),
@@ -131,18 +131,37 @@ export function OperatorLayout({
 
 export function BottomNavigation() {
   useLanguage();
+  const { machine } = useWam();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const items = [
-    { to: "/work" as const, label: "Work", icon: Briefcase, match: ["/work", "/task"] },
-    { to: "/scan" as const, label: "Scan", icon: QrCode, match: ["/scan", "/machine"] },
     { to: "/profile" as const, label: "Profile", icon: User, match: ["/profile", "/shift"] },
+    { to: "/scan" as const, label: "Scan", icon: QrCode, match: ["/scan", "/machine"] },
+    { to: "/work" as const, label: "Work", icon: Briefcase, match: ["/work", "/task"] },
   ];
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-surface/95 pb-safe backdrop-blur-sm">
+    <nav
+      aria-label={t("Operator navigation")}
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-surface/95 pb-safe backdrop-blur-sm"
+    >
       <div className="mx-auto grid max-w-md grid-cols-3 px-2 pt-1.5">
         {tv(
           items.map((it) => {
             const active = it.match.some((m) => path.startsWith(m));
+            if (it.to === "/work" && !machine)
+              return (
+                <button
+                  key={it.to}
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title={t("Scan a machine to enable Work.")}
+                  className="flex h-14 cursor-not-allowed flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-medium text-muted-foreground opacity-40"
+                >
+                  <it.icon className="size-5" />
+                  {t(it.label)}
+                  <span className="h-0.5 w-5" />
+                </button>
+              );
             return (
               <Link
                 key={it.to}

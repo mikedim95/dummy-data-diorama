@@ -159,7 +159,7 @@ passwords come from `WAM_LOCAL_PASSWORD` and are restricted to loopback developm
 
 `POST /api/wam/login` accepts only `{email,password}`. It verifies the password and
 queries the active account/employee; the database role determines the destination.
-Production users open their shift/workstation; management users open the existing
+Production users open their profile on every login; management users open the existing
 management tools. `GET /api/wam/session` rechecks identity/role on every request.
 There is no manager-specific or ID/PIN endpoint, signup button or role selector.
 
@@ -168,3 +168,14 @@ Supabase, verifies claims and role grants, and resolves the WAM account by subje
 Only after that check does the client persist its Supabase session. Preview/local
 logins use signed HttpOnly cookies. All modes enforce Origin checks and active WAM
 accounts. Record access continues to be authorized independently at query time.
+
+Operators confirm a workstation by QR (or the manual code fallback) before Work is
+enabled. Navigation stays ordered Profile, Scan, Work, with Work greyed out until scanning. The signed HttpOnly station cookie is bound to the login nonce, account,
+open shift segment and machine. Login/logout clears the selection. Reload retains a
+valid selection; another login requires scanning again. Operator snapshots contain
+no jobs/checks before scanning and query jobs only for the selected machine. Task,
+checklist, stock-usage and document endpoints independently validate this context.
+Changing machines preserves earlier shifts and checks, and invalidates the earlier
+station segment. Management retains its authorized view across machines.
+Use the same stable `WAM_SESSION_SECRET` on every production server instance so
+signed scan contexts remain valid when requests reach different instances.

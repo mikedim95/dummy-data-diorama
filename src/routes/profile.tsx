@@ -1,6 +1,6 @@
 import { translate as t, translateValue as tv, useLanguage } from "@/lib/i18n";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BadgeCheck, Clock, Cpu, LogOut } from "lucide-react";
+import { BadgeCheck, Clock, Cpu, LogOut, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OperatorLayout } from "@/components/wam/OperatorLayout";
 import { Eyebrow, fmtTime, Elapsed } from "@/components/wam/bits";
@@ -58,12 +58,17 @@ function ProfilePage() {
       </div>
 
       <Button asChild variant="gold" size="xl" className="mt-8 w-full">
-        <Link to="/shift">
-          <LogOut className="size-5" /> {t("Finish Shift")}
+        <Link to={machine ? "/shift" : "/scan"}>
+          {machine ? <LogOut className="size-5" /> : <QrCode className="size-5" />}{" "}
+          {t(machine ? "Finish Shift" : "Scan Machine QR")}
         </Link>
       </Button>
       <p className="mt-2 text-center text-xs text-muted-foreground">
-        {t("Runs the end-of-shift summary and machine checks.")}
+        {t(
+          machine
+            ? "Runs the end-of-shift summary and machine checks."
+            : "Scan your workstation to view today's assignments.",
+        )}
       </p>
     </OperatorLayout>
   );

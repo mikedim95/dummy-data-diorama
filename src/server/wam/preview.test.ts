@@ -93,7 +93,7 @@ describe.sequential("Password-protected hosted preview", () => {
       password: operatorPassword,
     });
     expect(operator.status).toBe(200);
-    expect(await operator.json()).toMatchObject({ role: "PRODUCTION", destination: "/scan" });
+    expect(await operator.json()).toMatchObject({ role: "PRODUCTION", destination: "/profile" });
     expect(
       (
         await request("login", {

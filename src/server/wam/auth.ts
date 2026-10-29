@@ -22,6 +22,8 @@ export type Account = {
   login_email?: string | null;
   managerAccess?: boolean;
   financeAccess?: boolean;
+  loginSession?: string;
+  station?: { shiftId: string; machineId: string };
 };
 const runtime = globalThis as typeof globalThis & {
   wamSessionSecret?: string;
@@ -52,49 +54,89 @@ export function requestOrigin(request: Request) {
 export function sessionCookie(
   accountId: string,
   secure = false,
-  mode: "local" | "preview" = "local",
+  mode: "local" | "preview" | "cloud" = "local",
+  nonce = randomBytes(24).toString("base64url"),
 ) {
   const body = Buffer.from(
-    JSON.stringify({ sub: accountId, mode, expires: Date.now() + 8 * 3600000 }),
+    JSON.stringify({ sub: accountId, mode, nonce, expires: Date.now() + 8 * 3600000 }),
   ).toString("base64url");
   return `wam_session=${body}.${signature(body)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800${secure ? "; Secure" : ""}`;
 }
 export const clearSessionCookie = "wam_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
-
-export async function authenticate(db: Database, request: Request): Promise<Account> {
-  const cookie = request.headers
+export const clearStationCookie = "wam_station=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
+export const sessionMode = (account: Account) =>
+  account.auth_provider === "password-preview"
+    ? "preview"
+    : account.auth_provider === "password-local"
+      ? "local"
+      : "cloud";
+export function stationCookie(
+  account: Account,
+  shiftId: string,
+  machineId: string,
+  nonce: string,
+  secure: boolean,
+) {
+  const body = Buffer.from(
+    JSON.stringify({
+      sub: account.id,
+      shiftId,
+      machineId,
+      nonce,
+      expires: Date.now() + 8 * 3600000,
+    }),
+  ).toString("base64url");
+  return `wam_station=${body}.${signature(body)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800${secure ? "; Secure" : ""}`;
+}
+type SignedContext = {
+  sub: string;
+  expires: number;
+  mode?: unknown;
+  nonce?: unknown;
+  shiftId?: unknown;
+  machineId?: unknown;
+};
+function signedCookie(request: Request, name: string): SignedContext | undefined {
+  const value = request.headers
     .get("cookie")
     ?.split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("wam_session="))
-    ?.slice(12);
+    .find((part) => part.startsWith(name + "="))
+    ?.slice(name.length + 1);
+  if (!value) return;
+  const [body, signed] = value.split(".");
+  if (!body || !signed) return;
+  const expected = Buffer.from(signature(body)),
+    received = Buffer.from(signed);
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) return;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (
+      typeof payload.sub === "string" &&
+      typeof payload.expires === "number" &&
+      payload.expires > Date.now()
+    )
+      return payload;
+  } catch {
+    /* Invalid session context is treated as unselected. */
+  }
+  return undefined;
+}
+
+export async function authenticate(db: Database, request: Request): Promise<Account> {
+  const context = signedCookie(request, "wam_session");
   let accountId: string | undefined;
   let cookieProvider: string | undefined;
   let cloudRoles: string[] | undefined;
-  if (cookie && (localDemoEnabled() || previewEnabled())) {
-    const [body, signed] = cookie.split(".");
-    if (body && signed) {
-      const expected = Buffer.from(signature(body));
-      const received = Buffer.from(signed);
-      if (expected.length === received.length && timingSafeEqual(expected, received)) {
-        try {
-          const payload = JSON.parse(Buffer.from(body, "base64url").toString());
-          if (
-            typeof payload.sub === "string" &&
-            payload.expires > Date.now() &&
-            ((payload.mode === "local" &&
-              localDemoEnabled() &&
-              ["localhost", "127.0.0.1", "[::1]"].includes(new URL(request.url).hostname)) ||
-              (payload.mode === "preview" && previewEnabled()))
-          ) {
-            accountId = payload.sub;
-            cookieProvider = payload.mode === "preview" ? "password-preview" : "password-local";
-          }
-        } catch {
-          /* Malformed cookies are treated as signed out. */
-        }
-      }
-    }
+  if (
+    context &&
+    ((context.mode === "local" &&
+      localDemoEnabled() &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(new URL(request.url).hostname)) ||
+      (context.mode === "preview" && previewEnabled()))
+  ) {
+    accountId = context.sub as string;
+    cookieProvider = context.mode === "preview" ? "password-preview" : "password-local";
   }
   if (!accountId) {
     const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
@@ -130,8 +172,21 @@ export async function authenticate(db: Database, request: Request): Promise<Acco
     throw new ApiError(403, "An active WAM account linked to an active employee is required.");
   if (cookieProvider && account.auth_provider !== cookieProvider)
     throw new ApiError(401, "Sign in to continue.");
+  const loginSession =
+    context?.sub === account.id && typeof context.nonce === "string" ? context.nonce : undefined;
+  const station = signedCookie(request, "wam_station");
+  const selection =
+    loginSession &&
+    station?.sub === account.id &&
+    station.nonce === loginSession &&
+    typeof station.shiftId === "string" &&
+    typeof station.machineId === "string"
+      ? { shiftId: station.shiftId, machineId: station.machineId }
+      : undefined;
   return {
     ...account,
+    ...(loginSession ? { loginSession } : {}),
+    ...(selection ? { station: selection } : {}),
     managerAccess:
       ["ADMIN", "MANAGER"].includes(account.role) &&
       (!cloudRoles || cloudRoles.includes("manager")),
@@ -234,7 +289,7 @@ export async function accountSession(db: Database, account: Account) {
     account.role === "PRODUCTION"
       ? (
           await db.query(
-            "SELECT machine_id FROM \"OPERATOR_SHIFT\" WHERE employee_id=$1 AND status='OPEN'",
+            "SELECT id,machine_id FROM \"OPERATOR_SHIFT\" WHERE employee_id=$1 AND status='OPEN'",
             [account.employee_id],
           )
         ).rows[0]
@@ -246,6 +301,12 @@ export async function accountSession(db: Database, account: Account) {
     name: account.full_name,
     employeeCode: account.employee_code,
     destination:
-      account.role === "PRODUCTION" ? (shift?.["machine_id"] ? "/work" : "/scan") : "/admin",
+      account.role === "PRODUCTION"
+        ? shift &&
+          account.station?.shiftId === shift["id"] &&
+          account.station?.machineId === shift["machine_id"]
+          ? "/work"
+          : "/profile"
+        : "/admin",
   };
 }
