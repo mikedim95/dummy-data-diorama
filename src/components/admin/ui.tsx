@@ -4,7 +4,7 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { JobStatus, OrderStatus } from "@/lib/wam/admin-types";
 
-export type AdminSearch = { range?: "1" | "7" | "30" | "90"; d?: string; f?: string; q?: string };
+export type AdminSearch = { range?: "1" | "7" | "30" | "90" | undefined; d?: string | undefined; f?: string | undefined; q?: string | undefined };
 
 /** Navigation helpers that carry the date range into every drill-down. */
 export function useDrill() {

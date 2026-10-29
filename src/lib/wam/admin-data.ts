@@ -123,7 +123,7 @@ for (let d = -150; d <= -4; d += int(1, 3)) {
 }
 
 // Current open pipeline — explicit so alerts and drill-downs are meaningful.
-const OPEN: [string, number, OrderStatus, number, CustomerOrder["approval"]][] = [
+const OPEN: [number, number, OrderStatus, number, CustomerOrder["approval"]][] = [
   // product index, customer index, status, deadline offset, approval
   [0, 0, "in_production", 3, "approved"], [1, 1, "in_production", 6, "approved"], [2, 2, "in_production", -2, "approved"],
   [3, 4, "in_production", 1, "approved"], [7, 3, "in_production", -1, "approved"], [5, 6, "qc", 2, "approved"],
