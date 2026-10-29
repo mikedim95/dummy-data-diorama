@@ -6,6 +6,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LanguageSelect } from "@/components/LanguageSwitcher";
+import { LocalizedText } from "@/components/LocalizedText";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -63,8 +65,13 @@ const SheetContent = React.forwardRef<
     <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">
+          <LocalizedText text="Close" />
+        </span>
       </SheetPrimitive.Close>
+      <div className="mb-3 flex justify-end pr-7">
+        <LanguageSelect />
+      </div>
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>

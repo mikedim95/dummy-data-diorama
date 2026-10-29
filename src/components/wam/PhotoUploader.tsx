@@ -1,3 +1,4 @@
+import { translate as t, translateValue as tv, useLanguage } from "@/lib/i18n";
 import { useRef } from "react";
 import { Camera, X } from "lucide-react";
 
@@ -22,29 +23,44 @@ export async function compressImage(file: File, max = 1280, q = 0.75): Promise<s
   }
 }
 
-export function PhotoUploader({ photos, onChange }: { photos: string[]; onChange: (p: string[]) => void }) {
+export function PhotoUploader({
+  photos,
+  onChange,
+}: {
+  photos: string[];
+  onChange: (p: string[]) => void;
+}) {
+  useLanguage();
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div className="flex flex-wrap gap-2">
-      {photos.map((p, i) => (
-        <div key={i} className="animate-rise relative size-20 overflow-hidden rounded-xl border border-border">
-          <img src={p} alt={`Attached photo ${i + 1}`} className="size-full object-cover" />
-          <button
-            type="button"
-            onClick={() => onChange(photos.filter((_, j) => j !== i))}
-            className="absolute top-1 right-1 grid size-7 place-items-center rounded-full bg-background/80 text-foreground"
-            aria-label="Remove photo"
+      {tv(
+        photos.map((p, i) => (
+          <div
+            key={i}
+            className="animate-rise relative size-20 overflow-hidden rounded-xl border border-border"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-      ))}
+            <img src={p} alt={t("Attached photo {0}", i + 1)} className="size-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onChange(photos.filter((_, j) => j !== i))}
+              className="absolute top-1 right-1 grid size-7 place-items-center rounded-full bg-background/80 text-foreground"
+              aria-label={t("Remove photo")}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        )),
+      )}
       <button
         type="button"
         onClick={() => ref.current?.click()}
         className="press grid size-20 place-items-center rounded-xl border border-dashed border-brass/60 text-brass"
       >
-        <div className="text-center text-[11px]"><Camera className="mx-auto mb-1 size-5" />Add photo</div>
+        <div className="text-center text-[11px]">
+          <Camera className="mx-auto mb-1 size-5" />
+          {t("Add photo")}
+        </div>
       </button>
       <input
         ref={ref}

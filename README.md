@@ -27,6 +27,12 @@ Docker, authentication, production hosting, endpoints, and data storage.
 
 ## Check
 
+The language selector at the top right switches the whole interface between Greek
+and English. Greek is the default; the browser remembers the selection. Forms keep
+draft values when switching, while record identifiers and stored enum values remain
+unchanged. Labels, workflow messages, validation, charts and dates use the selected
+language. Translation resources are in `src/lib/i18n/`.
+
 ```powershell
 npm test
 npm run typecheck

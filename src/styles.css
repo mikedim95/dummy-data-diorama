@@ -192,3 +192,5 @@
   }
   h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
 }
+
+.wam-app .min-h-dvh { min-height: calc(100dvh - 3rem); }

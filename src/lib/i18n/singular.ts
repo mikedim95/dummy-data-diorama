@@ -1,0 +1,15 @@
+export const greekSingular: Record<string, string> = {
+  "{0} overdue orders": "{0} εκπρόθεσμη παραγγελία",
+  "{0} blocked production steps": "{0} στάδιο παραγωγής σε αναμονή επίλυσης",
+  "{0} orders awaiting design approval": "{0} παραγγελία αναμένει έγκριση σχεδίου",
+  "{0} orders awaiting quality control": "{0} παραγγελία αναμένει ποιοτικό έλεγχο",
+  "{0} overdue plans": "{0} εκπρόθεσμο πρόγραμμα",
+  "{0} materials below minimum": "{0} υλικό κάτω από το ελάχιστο απόθεμα",
+  "{0} employees": "{0} εργαζόμενος",
+  "{0} documents": "{0} έγγραφο",
+  "{0} materials": "{0} υλικό",
+  "{0} orders": "{0} παραγγελία",
+  "{0} step(s)": "{0} στάδιο",
+  "{0} checks": "{0} έλεγχος",
+  "{0} not recorded yet": "{0} δεν έχει καταγραφεί ακόμη",
+};

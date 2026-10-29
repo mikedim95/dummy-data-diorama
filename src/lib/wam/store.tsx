@@ -1,4 +1,5 @@
-﻿import {
+import { translate as t } from "@/lib/i18n";
+import {
   createContext,
   useCallback,
   useContext,
@@ -156,7 +157,7 @@ export function WamProvider({ children }: { children: ReactNode }) {
     };
     const check = (phase: "start" | "end", id: string, value: CheckState | null) => {
       void update("checks", { phase, id, state: value, requestKey: crypto.randomUUID() }).catch(
-        (error: Error) => toast.error(error.message),
+        (error: Error) => toast.error(t(error.message)),
       );
     };
     return {

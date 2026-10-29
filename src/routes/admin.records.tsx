@@ -1,3 +1,5 @@
+import { getLocale } from "@/lib/i18n";
+import { translate as t, translateValue as tv, useLanguage } from "@/lib/i18n";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -123,6 +125,7 @@ async function fileData(file: File) {
 }
 
 function RecordsPage() {
+  useLanguage();
   const search = Route.useSearch();
   const entityKey = search.entity ?? "CUSTOMER_ORDER";
   const navigate = useNavigate();
@@ -177,17 +180,23 @@ function RecordsPage() {
   useEffect(() => setQuery(search.q ?? ""), [search.q]);
   function display(field: RecordField, value: unknown) {
     if (field.reference)
-      return workspace?.lookups[field.reference]?.find((item) => item.id === value)?.label ?? "—";
-    if (field.type === "boolean") return value ? "Yes" : "No";
-    if (field.type === "enum") return value ? human(text(value)) : "—";
+      return t(
+        workspace?.lookups[field.reference]?.find((item) => item.id === value)?.label ?? "—",
+      );
+    if (field.type === "boolean") return t(value ? "Yes" : "No");
+    if (field.type === "enum") return value ? t(human(text(value))) : "—";
+    if (field.key === "entity_type")
+      return t(workspace?.entities.find((item) => item.key === value)?.label ?? text(value));
+    if (field.key === "changed_columns" && Array.isArray(value))
+      return value.map((column) => t(human(String(column)))).join(", ");
     if ((field.type === "date" || field.type === "datetime") && value)
-      return new Date(text(value)).toLocaleString("en-GB", {
+      return new Date(text(value)).toLocaleString(getLocale(), {
         timeZone: "Europe/Athens",
         ...(field.type === "date"
           ? { dateStyle: "medium" as const }
           : { dateStyle: "medium" as const, timeStyle: "short" as const }),
       });
-    return text(value) || "—";
+    return t(text(value) || "—");
   }
   async function refresh() {
     await Promise.all([
@@ -231,7 +240,7 @@ function RecordsPage() {
         editing ? "PATCH" : "POST",
       );
       setOpen(false);
-      toast.success(editing ? "Changes saved" : "Record created");
+      toast.success(editing ? t("Changes saved") : t("Record created"));
       await refresh();
     } catch (error) {
       setError((error as Error).message);
@@ -254,7 +263,7 @@ function RecordsPage() {
         "DELETE",
       );
       setOpen(false);
-      toast.success("Relationship removed");
+      toast.success(t("Relationship removed"));
       await refresh();
     } catch (error) {
       setError((error as Error).message);
@@ -272,7 +281,7 @@ function RecordsPage() {
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      toast.error((error as Error).message);
+      toast.error(tv((error as Error).message));
     }
   }
   if (result.isPending)
@@ -283,12 +292,12 @@ function RecordsPage() {
     );
   if (result.isError || !workspace || !entity)
     return (
-      <Panel title="Could not load records">
+      <Panel title={t("Could not load records")}>
         <p className="text-sm text-critical">
-          {result.error?.message ?? "This collection is not available to your account."}
+          {tv(tv(result.error?.message) ?? t("This collection is not available to your account."))}
         </p>
         <Button className="mt-4" onClick={() => result.refetch()}>
-          Retry
+          {t("Retry")}
         </Button>
       </Panel>
     );
@@ -313,41 +322,47 @@ function RecordsPage() {
   return (
     <>
       <PageHeader
-        title="Manage records"
-        subtitle="Maintain workshop data, relationships and workflow history."
+        title={t("Manage records")}
+        subtitle={t("Maintain workshop data, relationships and workflow history.")}
       />
       <div className="mb-4 flex flex-wrap gap-2">
-        {groups.map((group) => (
-          <Button
-            key={group}
-            variant={group === entity.group ? "gold" : "metal"}
-            onClick={() => choose(workspace.entities.find((item) => item.group === group)!.key)}
-          >
-            {group}
-          </Button>
-        ))}
+        {tv(
+          groups.map((group) => (
+            <Button
+              key={t(group)}
+              variant={group === entity.group ? "gold" : "metal"}
+              onClick={() => choose(workspace.entities.find((item) => item.group === group)!.key)}
+            >
+              {t(group)}
+            </Button>
+          )),
+        )}
       </div>
-      <Panel title={entity.label}>
+      <Panel title={tv(entity.label)}>
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <label className="min-w-52 flex-1 text-xs text-muted-foreground">
-            Record collection
+            {t("Record collection")}
             <select
-              aria-label="Record collection"
+              aria-label={t("Record collection")}
               value={entityKey}
               onChange={(event) => choose(event.target.value)}
               className="mt-1 h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm text-foreground"
             >
-              {groups.map((group) => (
-                <optgroup key={group} label={group}>
-                  {workspace.entities
-                    .filter((item) => item.group === group)
-                    .map((item) => (
-                      <option key={item.key} value={item.key}>
-                        {item.label}
-                      </option>
-                    ))}
-                </optgroup>
-              ))}
+              {tv(
+                groups.map((group) => (
+                  <optgroup key={t(group)} label={t(group)}>
+                    {tv(
+                      workspace.entities
+                        .filter((item) => item.group === group)
+                        .map((item) => (
+                          <option key={item.key} value={item.key}>
+                            {tv(item.label)}
+                          </option>
+                        )),
+                    )}
+                  </optgroup>
+                )),
+              )}
             </select>
           </label>
           <form
@@ -358,90 +373,109 @@ function RecordsPage() {
             }}
           >
             <Input
-              aria-label="Search records"
+              aria-label={t("Search records")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search this collection…"
+              placeholder={t("Search this collection…")}
               className="h-11 bg-surface"
             />
-            <Button type="submit" variant="metal" aria-label="Search">
+            <Button type="submit" variant="metal" aria-label={t("Search")}>
               <Search className="size-4" />
             </Button>
           </form>
-          <Button variant="metal" onClick={() => refresh()} aria-label="Refresh records">
+          <Button variant="metal" onClick={() => refresh()} aria-label={t("Refresh records")}>
             <RefreshCw className="size-4" />
           </Button>
-          {entity.createFields.length > 0 && (
-            <Button variant="gold" onClick={() => edit(null)}>
-              <Plus className="size-4" />
-              {entity.upload ? "Upload new revision or file" : "New record"}
-            </Button>
+          {tv(
+            entity.createFields.length > 0 && (
+              <Button variant="gold" onClick={() => edit(null)}>
+                <Plus className="size-4" />
+                {tv(entity.upload ? t("Upload new revision or file") : t("New record"))}
+              </Button>
+            ),
           )}
         </div>
-        {descriptions[entity.key] && (
-          <p className="mb-4 max-w-4xl text-sm text-muted-foreground">{descriptions[entity.key]}</p>
+        {tv(
+          descriptions[entity.key] && (
+            <p className="mb-4 max-w-4xl text-sm text-muted-foreground">
+              {tv(descriptions[entity.key])}
+            </p>
+          ),
         )}
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[680px] text-left text-sm">
             <thead className="border-b border-border bg-surface">
               <tr>
-                {entity.columns
-                  .filter((key) => entity.fields.some((field) => field.key === key))
-                  .map((key) => (
-                    <th key={key} className="px-3 py-3 text-xs font-medium text-muted-foreground">
-                      {entity.fields.find((field) => field.key === key)!.label}
-                    </th>
-                  ))}
-                <th className="px-3">Actions</th>
+                {tv(
+                  entity.columns
+                    .filter((key) => entity.fields.some((field) => field.key === key))
+                    .map((key) => (
+                      <th key={key} className="px-3 py-3 text-xs font-medium text-muted-foreground">
+                        {tv(entity.fields.find((field) => field.key === key)!.label)}
+                      </th>
+                    )),
+                )}
+                <th className="px-3">{t("Actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {workspace.rows.map((row) => (
-                <tr key={text(row["id"])} className="hover:bg-elevated/50">
-                  {entity.columns
-                    .map((key) => entity.fields.find((field) => field.key === key))
-                    .filter((field): field is RecordField => !!field)
-                    .map((field) => (
-                      <td key={field.key} className="max-w-64 px-3 py-3">
-                        <span className="block truncate" title={display(field, row[field.key])}>
-                          {display(field, row[field.key])}
-                        </span>
-                      </td>
-                    ))}
-                  <td className="whitespace-nowrap px-3">
-                    <Button variant="ghost" size="sm" onClick={() => edit(row)}>
-                      {entity.editFields.length ? "View / edit" : "View"}
-                    </Button>
-                    {entity.key === "DOCUMENT" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Download ${text(row["title"])}`}
-                        onClick={() => download(text(row["id"]), text(row["original_filename"]))}
-                      >
-                        <Download className="size-4" />
-                      </Button>
+              {tv(
+                workspace.rows.map((row) => (
+                  <tr key={text(row["id"])} className="hover:bg-elevated/50">
+                    {tv(
+                      entity.columns
+                        .map((key) => entity.fields.find((field) => field.key === key))
+                        .filter((field): field is RecordField => !!field)
+                        .map((field) => (
+                          <td key={field.key} className="max-w-64 px-3 py-3">
+                            <span className="block truncate" title={display(field, row[field.key])}>
+                              {tv(display(field, row[field.key]))}
+                            </span>
+                          </td>
+                        )),
                     )}
-                  </td>
-                </tr>
-              ))}
-              {workspace.rows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={entity.columns.length + 1}
-                    className="py-12 text-center text-muted-foreground"
-                  >
-                    No records match this collection yet.
-                  </td>
-                </tr>
+                    <td className="whitespace-nowrap px-3">
+                      <Button variant="ghost" size="sm" onClick={() => edit(row)}>
+                        {tv(entity.editFields.length ? t("View / edit") : t("View"))}
+                      </Button>
+                      {tv(
+                        entity.key === "DOCUMENT" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={t("Download {0}", text(row["title"]))}
+                            onClick={() =>
+                              download(text(row["id"]), text(row["original_filename"]))
+                            }
+                          >
+                            <Download className="size-4" />
+                          </Button>
+                        ),
+                      )}
+                    </td>
+                  </tr>
+                )),
+              )}
+              {tv(
+                workspace.rows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={entity.columns.length + 1}
+                      className="py-12 text-center text-muted-foreground"
+                    >
+                      {t("No records match this collection yet.")}
+                    </td>
+                  </tr>
+                ),
               )}
             </tbody>
           </table>
         </div>
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            {workspace.total} records · Showing {workspace.total ? workspace.offset + 1 : 0}–
-            {Math.min(workspace.offset + workspace.rows.length, workspace.total)}
+            {tv(workspace.total)} {t("records · Showing")}{" "}
+            {tv(workspace.total ? workspace.offset + 1 : 0)}–
+            {tv(Math.min(workspace.offset + workspace.rows.length, workspace.total))}
           </span>
           <div className="flex gap-2">
             <Button
@@ -459,7 +493,7 @@ function RecordsPage() {
                 })
               }
             >
-              Previous
+              {t("Previous")}
             </Button>
             <Button
               variant="metal"
@@ -476,23 +510,27 @@ function RecordsPage() {
                 })
               }
             >
-              Next
+              {t("Next")}
             </Button>
           </div>
         </div>
-        {related.length > 0 && (
-          <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Related records:</span>
-            {related.map((key) => (
-              <button
-                key={key}
-                onClick={() => choose(key)}
-                className="rounded-md border border-border px-2 py-1.5 hover:text-gold"
-              >
-                {workspace.entities.find((item) => item.key === key)!.label}
-              </button>
-            ))}
-          </div>
+        {tv(
+          related.length > 0 && (
+            <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>{t("Related records:")}</span>
+              {tv(
+                related.map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => choose(key)}
+                    className="rounded-md border border-border px-2 py-1.5 hover:text-gold"
+                  >
+                    {tv(workspace.entities.find((item) => item.key === key)!.label)}
+                  </button>
+                )),
+              )}
+            </div>
+          ),
         )}
       </Panel>
       <Dialog
@@ -503,172 +541,208 @@ function RecordsPage() {
       >
         <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-surface sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editing ? entity.label : "New · " + entity.label}</DialogTitle>
+            <DialogTitle>{editing ? t(entity.label) : t("New · {0}", t(entity.label))}</DialogTitle>
             <DialogDescription>
-              {locked
-                ? "This completed record is preserved. Append a new revision or rework step instead."
-                : (descriptions[entity.key] ?? "Save changes to the workshop database.")}
+              {tv(
+                locked
+                  ? t(
+                      "This completed record is preserved. Append a new revision or rework step instead.",
+                    )
+                  : t(descriptions[entity.key] ?? "Save changes to the workshop database."),
+              )}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={save} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              {(editable ? editableFields : entity.fields).map((field) => {
-                const value = editable ? values[field.key] : editing?.[field.key];
-                if (!editable)
-                  return (
-                    <div key={field.key} className="min-w-0">
-                      <div className="text-xs text-muted-foreground">{field.label}</div>
-                      <div className="mt-1 whitespace-pre-wrap break-words text-sm">
-                        {display(field, value)}
+              {tv(
+                (editable ? editableFields : entity.fields).map((field) => {
+                  const value = editable ? values[field.key] : editing?.[field.key];
+                  if (!editable)
+                    return (
+                      <div key={field.key} className="min-w-0">
+                        <div className="text-xs text-muted-foreground">{tv(field.label)}</div>
+                        <div className="mt-1 whitespace-pre-wrap break-words text-sm">
+                          {tv(display(field, value))}
+                        </div>
                       </div>
-                    </div>
+                    );
+                  return (
+                    <label
+                      key={field.key}
+                      className={
+                        field.key === "instructions" || field.key === "notes"
+                          ? "block text-xs text-muted-foreground sm:col-span-2"
+                          : "block text-xs text-muted-foreground"
+                      }
+                    >
+                      {tv(field.label)}
+                      {tv(field.required && !editing ? " *" : "")}
+                      {tv(
+                        field.type === "boolean" ? (
+                          <input
+                            type="checkbox"
+                            checked={value === true}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                [field.key]: event.target.checked,
+                              }))
+                            }
+                            className="ml-3 size-4 align-middle accent-amber-600"
+                          />
+                        ) : field.reference || field.type === "enum" ? (
+                          <select
+                            aria-label={tv(field.label)}
+                            required={!editing && field.required}
+                            value={String(value ?? "")}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                            className="mt-1 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                          >
+                            <option value="">
+                              {tv(field.required ? t("Choose…") : t("Unassigned"))}
+                            </option>
+                            {tv(
+                              field.reference
+                                ? (workspace.lookups[field.reference] ?? []).map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {tv(item.label)}
+                                    </option>
+                                  ))
+                                : field.options?.map((option) => (
+                                    <option key={option} value={option}>
+                                      {t(human(option))}
+                                    </option>
+                                  )),
+                            )}
+                          </select>
+                        ) : [
+                            "instructions",
+                            "notes",
+                            "special_requests",
+                            "qc_notes",
+                            "cancellation_reason",
+                            "blocked_reason",
+                          ].includes(field.key) ? (
+                          <textarea
+                            aria-label={tv(field.label)}
+                            value={String(value ?? "")}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                            rows={3}
+                            maxLength={field.max ?? 20000}
+                            required={!editing && field.required}
+                            className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground"
+                          />
+                        ) : (
+                          <Input
+                            aria-label={tv(field.label)}
+                            type={
+                              field.type === "integer" || field.type === "decimal"
+                                ? "number"
+                                : field.type === "date"
+                                  ? "date"
+                                  : field.type === "datetime"
+                                    ? "datetime-local"
+                                    : "text"
+                            }
+                            step={field.type === "integer" ? "1" : "any"}
+                            value={String(value ?? "")}
+                            required={!editing && field.required}
+                            maxLength={field.max}
+                            onChange={(event) =>
+                              setValues((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                            className="mt-1 h-11 bg-background"
+                          />
+                        ),
+                      )}
+                    </label>
                   );
-                return (
-                  <label
-                    key={field.key}
-                    className={
-                      field.key === "instructions" || field.key === "notes"
-                        ? "block text-xs text-muted-foreground sm:col-span-2"
-                        : "block text-xs text-muted-foreground"
-                    }
-                  >
-                    {field.label}
-                    {field.required && !editing ? " *" : ""}
-                    {field.type === "boolean" ? (
-                      <input
-                        type="checkbox"
-                        checked={value === true}
-                        onChange={(event) =>
-                          setValues((current) => ({
-                            ...current,
-                            [field.key]: event.target.checked,
-                          }))
-                        }
-                        className="ml-3 size-4 align-middle accent-amber-600"
-                      />
-                    ) : field.reference || field.type === "enum" ? (
-                      <select
-                        aria-label={field.label}
-                        required={!editing && field.required}
-                        value={String(value ?? "")}
-                        onChange={(event) =>
-                          setValues((current) => ({ ...current, [field.key]: event.target.value }))
-                        }
-                        className="mt-1 h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                      >
-                        <option value="">{field.required ? "Choose…" : "Unassigned"}</option>
-                        {field.reference
-                          ? (workspace.lookups[field.reference] ?? []).map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.label}
-                              </option>
-                            ))
-                          : field.options?.map((option) => (
-                              <option key={option} value={option}>
-                                {human(option)}
-                              </option>
-                            ))}
-                      </select>
-                    ) : [
-                        "instructions",
-                        "notes",
-                        "special_requests",
-                        "qc_notes",
-                        "cancellation_reason",
-                        "blocked_reason",
-                      ].includes(field.key) ? (
-                      <textarea
-                        aria-label={field.label}
-                        value={String(value ?? "")}
-                        onChange={(event) =>
-                          setValues((current) => ({ ...current, [field.key]: event.target.value }))
-                        }
-                        rows={3}
-                        maxLength={field.max ?? 20000}
-                        required={!editing && field.required}
-                        className="mt-1 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground"
-                      />
-                    ) : (
-                      <Input
-                        aria-label={field.label}
-                        type={
-                          field.type === "integer" || field.type === "decimal"
-                            ? "number"
-                            : field.type === "date"
-                              ? "date"
-                              : field.type === "datetime"
-                                ? "datetime-local"
-                                : "text"
-                        }
-                        step={field.type === "integer" ? "1" : "any"}
-                        value={String(value ?? "")}
-                        required={!editing && field.required}
-                        maxLength={field.max}
-                        onChange={(event) =>
-                          setValues((current) => ({ ...current, [field.key]: event.target.value }))
-                        }
-                        className="mt-1 h-11 bg-background"
-                      />
-                    )}
-                  </label>
-                );
-              })}
+                }),
+              )}
             </div>
-            {!editing && entity.upload && (
-              <label className="block text-xs text-muted-foreground">
-                {entity.upload === "template" ? "Preserved design file" : "Document file"} *
-                <Input
-                  aria-label="Upload file"
-                  type="file"
-                  required
-                  onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
-                  className="mt-1 h-12 bg-background"
-                />
-                <span className="mt-1 block">
-                  Maximum 10 MB. File size and checksum are recorded from the uploaded bytes.
-                </span>
-              </label>
+            {tv(
+              !editing && entity.upload && (
+                <label className="block text-xs text-muted-foreground">
+                  {tv(
+                    entity.upload === "template" ? t("Preserved design file") : t("Document file"),
+                  )}{" "}
+                  *
+                  <Input
+                    aria-label={t("Upload file")}
+                    type="file"
+                    required
+                    onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
+                    className="mt-1 h-12 bg-background"
+                  />
+                  <span className="mt-1 block">
+                    {t(
+                      "Maximum 10 MB. File size and checksum are recorded from the uploaded bytes.",
+                    )}
+                  </span>
+                </label>
+              ),
             )}
-            {editable && (
-              <label className="block text-xs text-muted-foreground">
-                Reason for change
-                <Input
-                  aria-label="Reason for change"
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  className="mt-1 bg-background"
-                  placeholder="Optional, required for an approval exemption"
-                />
-              </label>
+            {tv(
+              editable && (
+                <label className="block text-xs text-muted-foreground">
+                  {t("Reason for change")}
+                  <Input
+                    aria-label={t("Reason for change")}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    className="mt-1 bg-background"
+                    placeholder={t("Optional, required for an approval exemption")}
+                  />
+                </label>
+              ),
             )}
-            {error && (
-              <p
-                role="alert"
-                className="rounded-lg border border-critical/40 bg-critical/10 p-3 text-sm text-critical"
-              >
-                {error}
-              </p>
+            {tv(
+              error && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-critical/40 bg-critical/10 p-3 text-sm text-critical"
+                >
+                  {tv(error)}
+                </p>
+              ),
             )}
             <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-              {editing && entity.removable && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={busy}
-                  onClick={remove}
-                  className="mr-auto"
-                >
-                  Remove relationship
-                </Button>
+              {tv(
+                editing && entity.removable && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={busy}
+                    onClick={remove}
+                    className="mr-auto"
+                  >
+                    {t("Remove relationship")}
+                  </Button>
+                ),
               )}
               <Button type="button" variant="metal" onClick={() => setOpen(false)} disabled={busy}>
-                Close
+                {t("Close")}
               </Button>
-              {editable && (
-                <Button type="submit" variant="gold" disabled={busy}>
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {editing ? "Save changes" : "Create record"}
-                </Button>
+              {tv(
+                editable && (
+                  <Button type="submit" variant="gold" disabled={busy}>
+                    {tv(busy ? <Loader2 className="size-4 animate-spin" /> : null)}
+                    {tv(editing ? t("Save changes") : t("Create record"))}
+                  </Button>
+                ),
               )}
             </div>
           </form>
