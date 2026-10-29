@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, CalendarClock, CheckCircle2, MapPin, Wrench } from "lucide-react";
 import { DataList, KpiCard, Panel, PageHeader, Pill, useDrill, type AdminSearch } from "@/components/admin/ui";
@@ -20,6 +21,7 @@ function Machines() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="MACHINE" /></div>
       <PageHeader title="Machines & Maintenance" subtitle="Status comes from the machine register. No live telemetry is connected." />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {db.ADMIN_MACHINES.map((m) => {

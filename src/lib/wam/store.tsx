@@ -21,6 +21,9 @@ type State = {
   maintenance: Record<string, MaintenanceItem[]>;
   startChecks: Record<string, CheckState>;
   endChecks: Record<string, CheckState>;
+  materialOptions: { id: string; name: string; unit: string; code: string }[];
+  stockLocations: { id: string; name: string }[];
+  stockBalances: { materialId: string; locationId: string; quantity: number }[];
 };
 const initial: State = {
   operator: null,
@@ -31,6 +34,9 @@ const initial: State = {
   maintenance: {},
   startChecks: {},
   endChecks: {},
+  materialOptions: [],
+  stockLocations: [],
+  stockBalances: [],
 };
 type Ctx = State & {
   hydrated: boolean;
@@ -48,6 +54,15 @@ type Ctx = State & {
   addActivity: (id: string, activity: Omit<Activity, "id" | "at" | "by">) => Promise<void>;
   completeTask: (id: string, note?: string, photos?: string[]) => Promise<void>;
   finishShift: (handover: string) => Promise<void>;
+  postMaterial: (input: {
+    request_key: string;
+    material_id: string;
+    job_id: string;
+    quantity: number;
+    movement_type: "CONSUMPTION" | "RETURN";
+    from_location_id?: string;
+    to_location_id?: string;
+  }) => Promise<void>;
 };
 const StoreCtx = createContext<Ctx | null>(null);
 
@@ -185,6 +200,16 @@ export function WamProvider({ children }: { children: ReactNode }) {
         }),
       completeTask: (id, note, photos) =>
         update(`tasks/${id}/complete`, { ...taskInput(id), text: note, photos }),
+      postMaterial: async (input) => {
+        pending.current++;
+        generation.current++;
+        try {
+          await wamRequest("stock-movements", input);
+          setState(await wamRequest<State>("operator"));
+        } finally {
+          pending.current--;
+        }
+      },
       finishShift: async (handover) => {
         pending.current++;
         generation.current++;

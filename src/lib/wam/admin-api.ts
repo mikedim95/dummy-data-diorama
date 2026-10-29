@@ -17,10 +17,12 @@ export type Snapshot = {
 /** Filled from the server (role-checked) by the /admin layout before any page renders. */
 export const db = {} as Snapshot;
 const D = db;
+let previousSnapshot:Snapshot|undefined;
+export const snapshotState={version:0};
 /** Signed-in manager. canSeeFinance mirrors the server's decision; it only hides UI — the server already withheld the data. */
 export const MANAGER = { name: "", role: "Manager", canSeeFinance: false };
 export function loadSnapshot(data: Snapshot, email: string, canSeeFinance: boolean) {
-  Object.assign(db, data);
+  if(previousSnapshot!==data){Object.assign(db,data);previousSnapshot=data;snapshotState.version++;}
   MANAGER.name = email;
   MANAGER.role = canSeeFinance ? "Manager · Finance" : "Manager";
   MANAGER.canSeeFinance = canSeeFinance;
@@ -34,6 +36,7 @@ export const jobsOfOrder = (id: string) => D.JOBS.filter((j) => j.orderId === id
 export const docsFor = (type: string, id: string) => D.DOCUMENTS.filter((d) => d.links.some((l) => l.type === type && l.id === id));
 
 export function useOverview(range: RangeKey) {
+  const revision=snapshotState.version;
   return useMemo(() => {
     const w = windows(range);
     const now = Date.now();
@@ -118,5 +121,5 @@ export function useOverview(range: RangeKey) {
         overdueUnpaid: D.FINANCIAL_RECORDS.filter((f) => outstanding(f) > 0 && new Date(f.dueDate).getTime() < startOfDay(now)).reduce((a, f) => a + outstanding(f), 0),
       },
     };
-  }, [range]);
+  }, [range,revision]);
 }

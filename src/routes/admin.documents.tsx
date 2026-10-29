@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { FileText, Lock } from "lucide-react";
@@ -18,6 +19,7 @@ function Documents() {
   const rows = db.DOCUMENTS.filter((d) => (d.classification !== "restricted" || MANAGER.canSeeFinance) && (!s.f || d.kind === s.f) && (!q || d.title.toLowerCase().includes(q.toLowerCase())));
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="DOCUMENT" /></div>
       <PageHeader title="Documents" subtitle="Restricted documents are visible only to accounts with finance permission." />
       <Panel title={`${rows.length} documents`}>
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">

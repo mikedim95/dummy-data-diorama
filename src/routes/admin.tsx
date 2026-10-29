@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
-  Bell, Boxes, Briefcase, Calendar, ChevronsLeft, ChevronsRight, Cog, Euro, Factory, FileText, LayoutDashboard, Menu, Search, Users,
+  Database, Bell, Boxes, Briefcase, Calendar, ChevronsLeft, ChevronsRight, Cog, Euro, Factory, FileText, LayoutDashboard, Menu, Search, Users,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -43,14 +43,13 @@ export const Route = createFileRoute("/admin")({
 function AdminGate() {
   const fetchSnapshot = useServerFn(getAdminSnapshot);
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const q = useQuery({ queryKey: ["admin-snapshot"], queryFn: () => fetchSnapshot(), staleTime: 60_000, retry: 1 });
   const signOut = async () => {
     await qc.cancelQueries(); qc.clear();
     const config = await wamRequest<{ localDemo: boolean; preview: boolean }>("config");
     await wamRequest("logout", {});
     if (!config.localDemo && !config.preview) await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    window.location.assign("/auth");
   };
   if (q.isPending) return <div className="grid min-h-dvh place-items-center bg-page"><Loader2 className="size-6 animate-spin text-gold" /></div>;
   if (q.isError) return <Centered title="Couldn't load the dashboard" body="Please try again." action={<Button variant="gold" onClick={() => q.refetch()}>Retry</Button>} />;
@@ -73,6 +72,7 @@ function Centered({ title, body, action }: { title: string; body: string; action
 }
 
 const NAV = [
+  { to: "/admin/records", label: "Manage records", icon: Database },
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/admin/production", label: "Production", icon: Factory },
   { to: "/admin/orders", label: "Orders", icon: Briefcase },

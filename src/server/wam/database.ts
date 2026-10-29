@@ -35,12 +35,13 @@ export async function connectDatabase(url?: string, directory = ".data/wam"): Pr
   return client as unknown as Database;
 }
 
-export async function migrate(db: Database) {
+export async function migrate(db: Database, through?: string) {
   await db.exec(
     "CREATE SCHEMA IF NOT EXISTS wam_internal; CREATE TABLE IF NOT EXISTS wam_internal.migrations (name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())",
   );
   const directory = resolve("database/migrations");
   for (const name of (await readdir(directory)).filter((file) => file.endsWith(".sql")).sort()) {
+    if (through && name > through) break;
     const source = await readFile(resolve(directory, name), "utf8");
     const checksum = createHash("sha256").update(source).digest("hex");
     const existing = (

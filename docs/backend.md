@@ -2,7 +2,7 @@
 
 The application now reads and writes the supplied WAM v4 PostgreSQL schema. The
 original SQL is preserved byte for byte in `database/migrations/001_wam_v4.sql`;
-the accompanying DBML is in `database/schema/`. The schema has 25 business tables
+the accompanying DBML is in `database/schema/`. The original schema has 25 business tables; migration 003 extends it to 28
 and the `OPERATOR_MAINTENANCE` view. Migration bookkeeping is isolated in the
 `wam_internal` schema.
 
@@ -23,8 +23,8 @@ Change `WAM_LOCAL_PIN` in `.env.local` to change the local PIN. These are explic
 local sample accounts, not production credentials.
 
 Without `DATABASE_URL`, the server uses PGlite: PostgreSQL running locally with
-data persisted in `.data/wam`. No Docker service is needed. Photos are stored in
-`.data/uploads`, with metadata and job links in `DOCUMENT` and `DOCUMENT_LINK`.
+data persisted in `.data/wam`. No Docker service is needed. Uploaded documents and photos are stored transactionally in PostgreSQL
+`wam_internal.document_content`, with metadata and links in `DOCUMENT` and `DOCUMENT_LINK`.
 Stop the development server before running database CLI commands against PGlite;
 only one process should open that data directory. Restarting the server preserves
 database records; local sessions expire on restart unless `WAM_SESSION_SECRET` is
@@ -78,8 +78,7 @@ npm start
 ```
 
 The build targets a Node server. Keep the `database` folder available relative to
-the application's working directory. Persist and back up external PostgreSQL and
-the upload directory. For the password-protected, seeded Render preview, see
+the application's working directory. Persist and back up external PostgreSQL and its internal document-content tables. For the password-protected, seeded Render preview, see
 [Render setup](render.md). Its photo bytes are stored in PostgreSQL; it does not
 change the existing Lovable/Supabase deployment.
 
@@ -87,8 +86,8 @@ change the existing Lovable/Supabase deployment.
 
 Screens continue using `src/lib/wam/store.tsx` and `admin-api.ts`. The operator
 store now calls authenticated HTTP endpoints; authoritative state is no longer in
-localStorage. Management data still comes only through the role-checked
-`getAdminSnapshot` server function. Fixtures are imported only by the server seeder.
+localStorage. Management dashboards use `getAdminSnapshot`; the records workspace uses
+`getManagementRecords` and the role-checked records API. Fixtures are imported only by the server seeder.
 
 All HTTP endpoints are under `/api/wam/`. JSON writes require `Content-Type:
 application/json` and an Origin matching the app URL. Cloud clients supply a Bearer
@@ -110,8 +109,15 @@ token; local clients use the session cookie.
 | `stock-movements`                                             | POST   | Retry-safe posting with `request_key`; balances update through SQL triggers          |
 | `audit`                                                       | GET    | Manager access to recent change metadata                                             |
 
-The existing management screens remain read-only. Intake/planning APIs are ready
-for management forms; there is no generic unrestricted table-editing endpoint.
+`/admin/records` provides curated forms for every business table. Each entity has
+an explicit create/edit field allowlist; derived balances and append-only histories
+are read-only. Existing dashboard pages link to the corresponding collection.
+See [table coverage](database-coverage.md) for workflows and permissions.
+
+`GET /api/wam/records/:entity` lists/searches records; POST creates, PATCH updates
+with `{values,version,reason?}`, and DELETE removes designated relationships only.
+Uploads accept files up to 10 MB, record real SHA-256 checksums and immutable design
+revisions, and serve bytes through the authorized `/api/wam/files/:id` route.
 
 The SQL enforces exact-template approvals, sequential steps, completed quantities,
 immutable revisions and completed jobs, nonnegative inventory, refund rules, and
@@ -119,12 +125,13 @@ append-only audit history. The API additionally enforces roles, one active job p
 operator, machine pre-start checks, assigned-operator writes, and shift handover.
 Completing the last job moves its order to QC, without automatically passing QC.
 
-Operator activity is a JSON envelope in `JOB.notes` (instructions, activity,
-priority, estimated duration); ordinary text remains readable. Shift machine/check
-state and handover live in `ATTENDANCE.notes`. No business tables were added or
-removed. Plan completions use `MACHINE_MAINTENANCE` retry keys and advance reminders
-through the supplied SQL trigger. Per-step material plans stay separate from actual
-stock usage, which is posted explicitly via `stock-movements`.
+Migration 003 copies legacy activity, photos and checklist state into `JOB_ACTIVITY`,
+`OPERATOR_SHIFT` and `SHIFT_CHECK`, retaining the original notes. New activity is
+append-only; closed shifts and their checks are preserved. Instructions, priority,
+estimates, machine model and customer city have typed columns. Plan completions
+use `MACHINE_MAINTENANCE` retry keys and advance reminders through SQL triggers.
+Operators see material requirements and post actual usage or returns from active
+jobs; `JOB_MATERIAL` remains the plan and `STOCK_MOVEMENT` drives balances.
 
 ## Verification
 

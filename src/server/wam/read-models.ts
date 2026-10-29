@@ -29,7 +29,7 @@ const jobStatus = (row: Row) =>
       ? ("active" as const)
       : (row["machine_status"] && row["machine_status"] !== "ACTIVE") ||
           row["preceding"] ||
-          metadata(row["notes"])["blockedReason"]
+          row["blocked_reason"]
         ? ("blocked" as const)
         : ("pending" as const);
 
@@ -38,15 +38,23 @@ export async function readJobs(db: Database) {
     await db.query(`SELECT j.*,o.order_number,o.title AS order_title,o.quantity,o.status AS order_status,o.approval_required,o.approved_template_id,o.template_id,o.customer_approved_at,o.due_at,
     c.name AS customer_name,m.equipment_code,m.status AS machine_status,e.employee_code,t.design_file,t.revision,
     EXISTS(SELECT 1 FROM "JOB" previous WHERE previous.order_id=j.order_id AND previous.sequence_no<j.sequence_no AND previous.status<>'COMPLETED') AS preceding,
-    (SELECT mat.name FROM "JOB_MATERIAL" jm JOIN "MATERIAL" mat ON mat.id=jm.material_id WHERE jm.job_id=j.id LIMIT 1) AS material_name,
-    (SELECT count(*)::int FROM "JOB" sibling WHERE sibling.order_id=j.order_id) AS step_count
+    (SELECT count(*)::int FROM "JOB" sibling WHERE sibling.order_id=j.order_id) AS step_count,
+    coalesce((SELECT jsonb_agg(jsonb_build_object('materialId',mat.id,'name',mat.name,'unit',mat.unit,'plannedQuantity',jm.planned_quantity,
+      'actualQuantity',coalesce((SELECT sum(CASE WHEN sm.movement_type='CONSUMPTION' THEN sm.quantity WHEN sm.movement_type='RETURN' THEN -sm.quantity ELSE 0 END) FROM "STOCK_MOVEMENT" sm WHERE sm.job_id=j.id AND sm.material_id=mat.id),0)))
+      FROM "JOB_MATERIAL" jm JOIN "MATERIAL" mat ON mat.id=jm.material_id WHERE jm.job_id=j.id),'[]'::jsonb) AS planned_materials,
+    coalesce((SELECT jsonb_agg(jsonb_build_object('id',a.id,'at',a.occurred_at,'by',coalesce(actor.full_name,a.author_name,'System'),'type',lower(a.kind),'text',a.notes,
+      'photos',coalesce((SELECT jsonb_agg('/api/wam/files/'||l.document_id::text) FROM "DOCUMENT_LINK" l WHERE l.job_activity_id=a.id),'[]'::jsonb)) ORDER BY a.occurred_at,a.id)
+      FROM "JOB_ACTIVITY" a LEFT JOIN "EMPLOYEE" actor ON actor.id=a.actor_employee_id WHERE a.job_id=j.id),'[]'::jsonb) AS activities,
+    coalesce((SELECT jsonb_agg(jsonb_build_object('id',d.id,'title',d.title,'filename',d.original_filename,'url','/api/wam/files/'||d.id::text,'available',EXISTS(SELECT 1 FROM wam_internal.document_content dc WHERE dc.document_id=d.id)))
+      FROM "DOCUMENT" d WHERE d.visibility<>'RESTRICTED' AND upper(coalesce(d.category,'')) NOT IN ('INVOICE','FINANCIAL')
+      AND EXISTS(SELECT 1 FROM "DOCUMENT_LINK" l WHERE l.document_id=d.id AND (l.job_id=j.id OR l.template_id=o.template_id OR l.machine_id=j.machine_id))),'[]'::jsonb) AS reference_files
     FROM "JOB" j JOIN "CUSTOMER_ORDER" o ON o.id=j.order_id JOIN "CUSTOMER" c ON c.id=o.customer_id
-    LEFT JOIN "MACHINE" m ON m.id=j.machine_id LEFT JOIN "EMPLOYEE" e ON e.id=j.responsible_employee_id LEFT JOIN "TEMPLATE" t ON t.id=o.template_id ORDER BY o.submitted_at DESC,j.sequence_no`)
+    LEFT JOIN "MACHINE" m ON m.id=j.machine_id LEFT JOIN "EMPLOYEE" e ON e.id=j.responsible_employee_id LEFT JOIN "TEMPLATE" t ON t.id=o.template_id
+    ORDER BY o.submitted_at DESC,j.sequence_no`)
   ).rows;
 }
 
 export function taskFromRow(row: Row): Task {
-  const meta = metadata(row["notes"]);
   const waiting = !["IN_PRODUCTION", "QC", "READY", "DELIVERED"].includes(row["order_status"]);
   const status = waiting && row["status"] !== "COMPLETED" ? "blocked" : jobStatus(row);
   return {
@@ -55,15 +63,19 @@ export function taskFromRow(row: Row): Task {
     title: row["name"],
     customer: row["customer_name"],
     machine: row["equipment_code"] ?? "Manual",
-    priority: meta["priority"] ?? "normal",
-    estMin: meta["estMin"] ?? 0,
+    priority: row["priority"].toLowerCase(),
+    estMin: row["estimated_minutes"],
     status,
     sequence: row["sequence_no"],
-    material: row["material_name"] ?? "Not specified",
+    material:
+      row["planned_materials"].map((material: { name: string }) => material.name).join(", ") ||
+      "Not specified",
+    plannedMaterials: row["planned_materials"],
+    referenceFiles: row["reference_files"],
     quantity: row["quantity"],
     template: row["design_file"] ?? "Not assigned",
     orderStage: `Stage ${row["sequence_no"]} of ${row["step_count"]}`,
-    instructions: meta["instructions"] ?? "",
+    instructions: row["instructions"] ?? "",
     files: row["design_file"] ? [row["design_file"]] : [],
     ...(status === "blocked"
       ? {
@@ -71,13 +83,13 @@ export function taskFromRow(row: Row): Task {
             ? "Order is awaiting planning or customer approval."
             : row["preceding"]
               ? "Complete preceding production steps first."
-              : (meta["blockedReason"] ?? "Machine is unavailable."),
+              : (row["blocked_reason"] ?? "Machine is unavailable."),
         }
       : {}),
     ...(row["employee_code"] ? { assignee: row["employee_code"] } : {}),
     ...(row["started_at"] ? { startedAt: iso(row["started_at"])! } : {}),
     ...(row["completed_at"] ? { completedAt: iso(row["completed_at"])! } : {}),
-    activity: (meta["activity"] ?? []) as Activity[],
+    activity: row["activities"] as Activity[],
     recordVersion: row["record_version"],
   };
 }
@@ -88,19 +100,20 @@ export async function readMaintenance(db: Database) {
   ).rows;
   const result: Record<string, MaintenanceItem[]> = {};
   for (const row of rows) {
-    const meta = metadata(row["instructions"]);
     const item: MaintenanceItem = {
       id: row["plan_id"],
-      phase: meta["phase"] === "end" ? "end" : "start",
+      phase: row["operator_check_phase"] === "END" ? "end" : "start",
       title: row["title"],
       kind: row["operator_can_complete"] ? "required" : "info",
       priority:
         row["reminder_status"] === "OVERDUE"
           ? "overdue"
-          : meta["priority"] === "safety"
+          : row["priority"] === "SAFETY"
             ? "safety"
-            : "normal",
-      instructions: meta["instructions"] ?? row["instructions"],
+            : row["priority"] === "HIGH"
+              ? "high"
+              : "normal",
+      instructions: row["instructions"],
       ...(row["next_due_date"]
         ? { dueNote: `Due ${iso(row["next_due_date"])!.slice(0, 10)}` }
         : {}),
@@ -120,9 +133,32 @@ export async function readAttendance(db: Database, account: Account) {
   ).rows[0];
 }
 
+export async function readOpenShift(db: Database, account: Account) {
+  return (
+    await db.query(
+      'SELECT s.*,m.equipment_code AS machine_code FROM "OPERATOR_SHIFT" s LEFT JOIN "MACHINE" m ON m.id=s.machine_id WHERE s.employee_id=$1 AND s.status=\'OPEN\' ORDER BY s.started_at DESC LIMIT 1',
+      [account.employee_id],
+    )
+  ).rows[0];
+}
+export async function readShiftChecks(db: Database, shiftId: string) {
+  const rows = (
+    await db.query('SELECT plan_id,phase,state FROM "SHIFT_CHECK" WHERE shift_id=$1', [shiftId])
+  ).rows;
+  const result: {
+    startChecks: Record<string, "done" | "skipped">;
+    endChecks: Record<string, "done" | "skipped">;
+  } = { startChecks: {}, endChecks: {} };
+  for (const row of rows)
+    result[row["phase"] === "START" ? "startChecks" : "endChecks"][row["plan_id"]] =
+      row["state"].toLowerCase();
+  return result;
+}
 export async function operatorSnapshot(db: Database, account: Account) {
-  const attendance = await readAttendance(db, account);
-  const shift = metadata(attendance?.["notes"]);
+  const shift = await readOpenShift(db, account);
+  const checks = shift
+    ? await readShiftChecks(db, shift["id"])
+    : { startChecks: {}, endChecks: {} };
   const machines = (
     await db.query(
       'SELECT m.*,l.name AS location_name FROM "MACHINE" m LEFT JOIN "LOCATION" l ON l.id=m.location_id WHERE m.is_active ORDER BY m.equipment_code',
@@ -134,14 +170,13 @@ export async function operatorSnapshot(db: Database, account: Account) {
       name: account.full_name,
       role: account.job_title ?? account.role,
     },
-    machineCode: shift["machineCode"] ?? null,
-    shiftStartedAt: iso(attendance?.["check_in_at"]) ?? null,
-    startChecks: shift["startChecks"] ?? {},
-    endChecks: shift["endChecks"] ?? {},
+    machineCode: shift?.["machine_code"] ?? null,
+    shiftStartedAt: iso(shift?.["started_at"]) ?? null,
+    ...checks,
     machines: machines.map((m) => ({
       code: m["equipment_code"],
       name: m["name"],
-      model: m["type"] ?? "",
+      model: m["model"] ?? "",
       location: m["location_name"] ?? "",
       status:
         m["status"] === "ACTIVE"
@@ -154,6 +189,26 @@ export async function operatorSnapshot(db: Database, account: Account) {
       .filter((row) => !["CANCELLED", "DELIVERED"].includes(row["order_status"]))
       .map(taskFromRow),
     maintenance: await readMaintenance(db),
+    materialOptions: (
+      await db.query(
+        'SELECT id,name,unit,material_code FROM "MATERIAL" WHERE is_active ORDER BY name',
+      )
+    ).rows.map((m) => ({
+      id: m["id"],
+      name: m["name"],
+      unit: m["unit"],
+      code: m["material_code"],
+    })),
+    stockLocations: (await db.query('SELECT id,name FROM "LOCATION" ORDER BY name')).rows.map(
+      (l) => ({ id: l["id"], name: l["name"] }),
+    ),
+    stockBalances: (
+      await db.query('SELECT material_id,location_id,quantity FROM "STOCK_BALANCE"')
+    ).rows.map((b) => ({
+      materialId: b["material_id"],
+      locationId: b["location_id"],
+      quantity: Number(b["quantity"]),
+    })),
   };
 }
 
@@ -203,7 +258,7 @@ export async function adminSnapshot(db: Database, account: Account) {
     table("LOCATION"),
     table("DEPARTMENT"),
     table("EMPLOYEE_DEPARTMENT"),
-    canSeeFinance ? table("SUPPLIER_MATERIAL") : Promise.resolve([]),
+    table("SUPPLIER_MATERIAL"),
     table("SUPPLIER"),
   ]);
   const find = (rows: Row[], id: string) => rows.find((row) => row["id"] === id);
@@ -212,13 +267,13 @@ export async function adminSnapshot(db: Database, account: Account) {
     CUSTOMERS: customers.map((c) => ({
       id: c["id"],
       name: c["name"],
-      city: c["notes"] ?? "",
+      city: c["city"] ?? "",
       email: c["email"] ?? "",
     })),
     ADMIN_MACHINES: machines.map((m) => ({
       code: m["equipment_code"],
       name: m["name"],
-      model: m["type"] ?? "",
+      model: m["model"] ?? "",
       location: find(locations, m["location_id"])?.["name"] ?? "",
       status: machineStatus(m["status"]),
     })),
@@ -299,7 +354,9 @@ export async function adminSnapshot(db: Database, account: Account) {
       employeeId: j["employee_code"] ?? undefined,
       status: jobStatus(j),
       blockedReason: taskFromRow(j).blockedReason,
-      instructions: metadata(j["notes"])["instructions"] ?? "",
+      instructions: j["instructions"] ?? "",
+      materialId: j["planned_materials"][0]?.materialId,
+      materialQty: j["planned_materials"][0]?.plannedQuantity,
       quantityDone: j["completed_quantity"],
       startedAt: iso(j["started_at"]),
       completedAt: iso(j["completed_at"]),

@@ -1,6 +1,6 @@
 # WAM workshop app
 
-Workshop operator app and management dashboard, connected to the supplied WAM v4 PostgreSQL database (25 tables).
+Workshop operator app and management dashboard, connected to the supplied WAM PostgreSQL database (original v4 schema plus workflow extensions, 28 tables).
 
 ## Run locally
 
@@ -16,8 +16,8 @@ npm run dev
 Open http://127.0.0.1:3000. Operator: `OP-104` or `OP-117`, PIN `1234`.
 Management: http://127.0.0.1:3000/auth, local PIN `1234`.
 
-The default local database is PostgreSQL/PGlite, persisted to `.data/wam`; photos are
-stored under `.data/uploads`. Docker is optional. Stop the server before running
+The default local database is PostgreSQL/PGlite, persisted to `.data/wam`; uploaded files are
+stored transactionally in the database. Docker is optional. Stop the server before running
 CLI commands on the embedded database. The supplied SQL enforces approvals,
 production steps, inventory posting, finance checks, maintenance reminders, and audit
 history. Sample logins and seeding are disabled in production.

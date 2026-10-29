@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, Boxes, MapPin, TriangleAlert } from "lucide-react";
 import { DataList, FilterChips, KpiCard, Panel, PageHeader, Pill, useDrill, type AdminSearch } from "@/components/admin/ui";
@@ -22,6 +23,7 @@ function Inventory() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="MATERIAL" /></div>
       <PageHeader title="Inventory" subtitle="Consumption figures come from recorded stock movements, not planned job requirements." />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="Material types" value={db.MATERIALS.length} icon={Boxes} onClick={() => go("/admin/inventory")} />

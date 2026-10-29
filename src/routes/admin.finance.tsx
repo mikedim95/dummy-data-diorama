@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -38,6 +39,7 @@ function Finance() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="FINANCIAL_RECORD" /></div>
       <PageHeader title="Finance" subtitle="From financial records. Sales are shown net of refunds; this is not a profit figure." />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <KpiCard label="Gross recorded sales" value={eur(netSales(period))} sub="Selected period" icon={ArrowUpRight} onClick={() => go("/admin/finance", { f: "sale" })} />

@@ -17,6 +17,8 @@ import {
 import { operatorSnapshot } from "./read-models";
 import { changeShift, finishShift, mutateTask, startShift } from "./actions";
 import { insert } from "./seed";
+import { authorizeDocument } from "./documents";
+import { recordsWorkspace, createRecord, changeRecord } from "./records";
 
 const uuid = z.string().uuid();
 const note = z.string().max(10000);
@@ -30,7 +32,7 @@ const json = (value: unknown, status = 200, headers?: Record<string, string>) =>
 async function body(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new ApiError(415, "Send application/json.");
-  const limit = 13 * 1024 * 1024;
+  const limit = 16 * 1024 * 1024;
   if (Number(request.headers.get("content-length") ?? 0) > limit)
     throw new ApiError(413, "Request is too large.");
   const reader = request.body?.getReader();
@@ -58,8 +60,8 @@ export async function handleWamRequest(request: Request): Promise<Response> {
   try {
     const path = new URL(request.url).pathname.replace(/^\/api\/wam\/?/, "").replace(/\/$/, "");
     const method = request.method;
-    if (!["GET", "POST", "PATCH"].includes(method))
-      return json({ error: "Method not allowed." }, 405, { Allow: "GET, POST, PATCH" });
+    if (!["GET", "POST", "PATCH", "DELETE"].includes(method))
+      return json({ error: "Method not allowed." }, 405, { Allow: "GET, POST, PATCH, DELETE" });
     if (method !== "GET" && request.headers.get("origin") !== requestOrigin(request))
       throw new ApiError(403, "A matching Origin header is required.");
     if (path === "config" && method === "GET")
@@ -98,6 +100,37 @@ export async function handleWamRequest(request: Request): Promise<Response> {
       });
     }
     const account = await authenticate(db, request);
+    const resource = /^records\/([A-Z_]+)(?:\/([0-9a-f-]+))?$/.exec(path);
+    if (resource) {
+      if (method === "GET" && !resource[2]) {
+        const params = new URL(request.url).searchParams;
+        const offset = z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(1000000)
+          .parse(params.get("offset") ?? 0);
+        const search = z
+          .string()
+          .max(200)
+          .parse(params.get("search") ?? "");
+        return json(await recordsWorkspace(db, account, { entity: resource[1]!, offset, search }));
+      }
+      if (method === "POST" && !resource[2])
+        return json(await createRecord(db, account, resource[1]!, await body(request)), 201);
+      if ((method === "PATCH" || method === "DELETE") && resource[2])
+        return json(
+          await changeRecord(
+            db,
+            account,
+            resource[1]!,
+            resource[2],
+            await body(request),
+            method === "DELETE",
+          ),
+        );
+      throw new ApiError(405, "Method not allowed for this record collection.");
+    }
     if (path === "session" && method === "GET")
       return json({
         role: account.role,
@@ -153,17 +186,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
       const doc = (await db.query('SELECT * FROM "DOCUMENT" WHERE id=$1', [id])).rows[0];
       if (!doc || !/^(uploads|database-uploads)\//.test(doc["file_path"]))
         throw new ApiError(404, "File not found.");
-      if (doc["visibility"] === "RESTRICTED") requireRole(account, ["ADMIN", "FINANCE"]);
-      if (
-        account.role === "PRODUCTION" &&
-        !(
-          await db.query(
-            'SELECT 1 FROM "DOCUMENT_LINK" d JOIN "JOB" j ON j.id=d.job_id WHERE d.document_id=$1 AND j.responsible_employee_id=$2',
-            [id, account.employee_id],
-          )
-        ).rows.length
-      )
-        throw new ApiError(403, "You do not have access to this task's files.");
+      await authorizeDocument(db, account, doc);
       const stored = doc["file_path"].startsWith("database-uploads/")
         ? (
             await db.query(
@@ -187,6 +210,12 @@ export async function handleWamRequest(request: Request): Promise<Response> {
           "Content-Type": doc["mime_type"],
           "Cache-Control": "private, no-store",
           "X-Content-Type-Options": "nosniff",
+          ...(!["image/jpeg", "image/png", "image/webp"].includes(doc["mime_type"])
+            ? {
+                "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(doc["original_filename"] ?? doc["title"])}`,
+                "Content-Security-Policy": "default-src 'none'; sandbox",
+              }
+            : {}),
         },
       });
     }
@@ -381,6 +410,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
           );
         return row;
       });
+      if (!account.financeAccess) delete result["financial_record_id"];
       return json(result, 201);
     }
     if (path === "audit" && method === "GET") {

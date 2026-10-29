@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Briefcase, CalendarOff, Palmtree, UserCheck, Users } from "lucide-react";
@@ -36,6 +37,7 @@ function Employees() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="EMPLOYEE" /></div>
       <PageHeader title="Employees" subtitle="Attendance shows recorded rows only — missing rows are 'not recorded', never absent." />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <KpiCard label="Active employees" value={db.EMPLOYEES.filter((e) => e.status === "active").length} icon={Users} onClick={() => go("/admin/employees")} />

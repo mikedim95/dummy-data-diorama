@@ -1,3 +1,4 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { DataList, FilterChips, JobPill, KpiCard, Panel, PageHeader, useDrill, type AdminSearch, type Col } from "@/components/admin/ui";
@@ -37,6 +38,7 @@ function Production() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="JOB" /></div>
       <PageHeader title="Production" subtitle="Every row is one production step of a customer order." />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <KpiCard label="Active orders" value={db.ORDERS.filter((o) => IN_PRODUCTION.includes(o.status)).length} icon={Factory} onClick={() => go("/admin/orders", { f: "active" })} />

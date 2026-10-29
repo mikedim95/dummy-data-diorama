@@ -68,7 +68,7 @@ export async function seedDemo(
         id: demoId(c.id),
         name: c.name,
         email: c.email,
-        notes: c.city,
+        city: c.city,
       });
     const locations = new Set([
       ...D.ADMIN_MACHINES.map((m) => m.location),
@@ -81,7 +81,8 @@ export async function seedDemo(
         id: demoId(m.code),
         equipment_code: m.code,
         name: m.name,
-        type: m.model,
+        model: m.model,
+        type: m.code.includes("CNC") ? "CNC" : m.code.includes("LSR") ? "LASER" : "PRODUCTION",
         location_id: demoId(m.location),
         status:
           m.status === "operational"
@@ -169,20 +170,16 @@ export async function seedDemo(
         submitted_at: submitted,
         due_at: historical ? finished : ago(index % 3 === 0 ? 1 : -5),
       });
-      const metadata = {
-        instructions: p.instructions,
-        activity: [],
-        priority: p.priority,
-        estMin: p.estMin,
-        blockedReason: p.blockedReason,
-      };
       await insert(tx, "JOB", {
         id: jobId,
         order_id: orderId,
         sequence_no: 1,
         name: p.title,
         machine_id: demoId(p.machine),
-        notes: JSON.stringify(metadata),
+        instructions: p.instructions,
+        priority: p.priority.toUpperCase(),
+        estimated_minutes: p.estMin,
+        blocked_reason: p.blockedReason,
       });
       await insert(tx, "JOB_MATERIAL", {
         job_id: jobId,
@@ -260,11 +257,10 @@ export async function seedDemo(
           id: demoId(item.id),
           machine_id: demoId(code),
           title: item.title,
-          instructions: JSON.stringify({
-            instructions: item.instructions,
-            phase: item.phase,
-            priority: item.priority,
-          }),
+          instructions: item.instructions,
+          operator_check_phase: item.phase.toUpperCase(),
+          priority:
+            item.priority === "safety" ? "SAFETY" : item.priority === "high" ? "HIGH" : "NORMAL",
           maintenance_type: "INSPECTION",
           operator_can_complete: item.kind === "required",
           created_by_employee_id: manager,

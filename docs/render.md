@@ -1,7 +1,7 @@
 # Seeded Render preview
 
 The frontend and backend run together in the `wam-v4-preview` Node web service.
-The `wam-v4-preview-db` PostgreSQL instance stores the 25 WAM tables, audit history,
+The `wam-v4-preview-db` PostgreSQL instance stores the 28 WAM tables, audit history,
 and uploaded photos. Both resources belong to the existing **WAM / Preview**
 environment in Frankfurt.
 

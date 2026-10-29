@@ -1,8 +1,9 @@
+import { RecordShortcut } from "@/components/admin/RecordShortcut";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { DataList, FilterChips, OrderPill, Panel, PageHeader, useDrill, ORDER_STATUS, type AdminSearch, type Col } from "@/components/admin/ui";
 import { Input } from "@/components/ui/input";
-import { customer, db, jobsOfOrder } from "@/lib/wam/admin-api";
+import { customer, db, jobsOfOrder, snapshotState } from "@/lib/wam/admin-api";
 import { fmtDate, isOverdue, IN_PRODUCTION } from "@/lib/wam/admin-logic";
 import type { CustomerOrder, OrderStatus } from "@/lib/wam/admin-types";
 
@@ -18,18 +19,19 @@ function Orders() {
   const { go, open } = useDrill();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"deadline" | "created">("deadline");
+  const revision=snapshotState.version;
   const rows = useMemo(() => {
     let r = db.ORDERS;
     if (s.f === "overdue") r = r.filter((o) => isOverdue(o));
     else if (s.f === "active") r = r.filter((o) => IN_PRODUCTION.includes(o.status));
     else if (s.f) r = r.filter((o) => o.status === s.f);
     else r = r.filter((o) => o.status !== "delivered" && o.status !== "cancelled");
-    if (q) r = r.filter((o) => `${o.id} ${o.title} ${customer(o.customerId)?.name}`.toLowerCase().includes(q.toLowerCase()));
+    if (q) r = r.filter((o) => `${o.number??o.id} ${o.title} ${customer(o.customerId)?.name}`.toLowerCase().includes(q.toLowerCase()));
     return [...r].sort((a, b) => sort === "deadline" ? a.deadline.localeCompare(b.deadline) : b.createdAt.localeCompare(a.createdAt));
-  }, [s.f, q, sort]);
+  }, [s.f, q, sort, revision]);
 
   const cols: Col<CustomerOrder>[] = [
-    { key: "id", label: "Order", render: (o) => <span className="font-mono text-xs text-brass">{o.id}</span> },
+    { key: "id", label: "Order", render: (o) => <span className="font-mono text-xs text-brass">{o.number??o.id}</span> },
     { key: "c", label: "Customer", render: (o) => customer(o.customerId)?.name },
     { key: "t", label: "Product", render: (o) => o.title },
     { key: "q", label: "Qty", render: (o) => o.quantity },
@@ -40,6 +42,7 @@ function Orders() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end"><RecordShortcut entity="CUSTOMER_ORDER" /></div>
       <PageHeader title="Orders" subtitle="Open orders by default. Use the pipeline to filter." />
       <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {PIPE.map((st) => (

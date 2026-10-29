@@ -53,7 +53,7 @@ describe.sequential("WAM v4 PostgreSQL backend", () => {
     await migrate(db);
     await seedDemo(db);
     expect((await request("health")).status).toBe(200);
-    expect((await (await request("health")).json()).tables).toBe(25);
+    expect((await (await request("health")).json()).tables).toBe(28);
     const schema = await readFile("database/schema/WAM_unified_25_tables_v4.dbml", "utf8");
     const actual = (
       await db.query(

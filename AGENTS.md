@@ -1,8 +1,8 @@
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
+> published git history â€” force pushing, or rebasing/amending/squashing commits
+> that are already pushed â€” as it rewrites history on Lovable's side and the
 > user will likely lose their project history.
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
@@ -12,13 +12,13 @@
 ## WAM operator app
 - Operator data access goes through `src/lib/wam/store.tsx` and `client-api.ts`, calling authenticated `/api/wam/*` endpoints. Server code lives in `src/server/wam`. Do not restore browser-local authoritative state.
 - Business rules (task sort, claim checks, shift finish) live as pure functions in `src/lib/wam/logic.ts` with tests.
-- Management dashboard lives under `/admin`; all its data goes through `src/lib/wam/admin-api.ts` and the role-checked `getAdminSnapshot` server function, with PostgreSQL queries in `src/server/wam/read-models.ts`. KPI rules live in `admin-logic.ts` with tests. Drill-down detail is the `d=type:id` search param rendered by `DetailDrawer`, so details are shareable and Back works.
-- Admin access: `/admin` is client-only (`ssr: false`) and redirects signed-out users to `/auth`; its data comes only from the `getAdminSnapshot` server function, which checks `user_roles` (manager; finance for money data) and strips what the caller may not see. Never import `admin-data.ts` from client code — only dynamically inside server handlers — so data never ships in the browser bundle.
+- Management dashboard lives under `/admin`; dashboard data goes through `src/lib/wam/admin-api.ts` and `getAdminSnapshot`; management records use `getManagementRecords` and the authenticated records API, with PostgreSQL queries in `src/server/wam/read-models.ts`. KPI rules live in `admin-logic.ts` with tests. Drill-down detail is the `d=type:id` search param rendered by `DetailDrawer`, so details are shareable and Back works.
+- Admin access: `/admin` is client-only (`ssr: false`) and redirects signed-out users to `/auth`; its data comes from role-checked `getAdminSnapshot`, `getManagementRecords` and the records API, which checks `user_roles` (manager; finance for money data) and strips what the caller may not see. Never import `admin-data.ts` from client code â€” only dynamically inside server handlers â€” so data never ships in the browser bundle.
 - Roles live in `public.user_roles` (`app_role`: manager, finance). The first account ever created is auto-granted both by a trigger; later accounts start with none.
 
 ## WAM v4 backend
 - Preserve the supplied SQL/DBML in `database/`. Add numbered migrations rather than editing applied migrations; initialization is for fresh databases only.
-- There are exactly 25 public business tables. Internal migration metadata lives in `wam_internal`.
+- There are 28 public business tables: the supplied 25 plus OPERATOR_SHIFT, SHIFT_CHECK and JOB_ACTIVITY. Internal migration metadata lives in `wam_internal`.
 - PGlite is local development storage. Production requires `DATABASE_URL`; normal deployments use verified Supabase identities linked to active WAM accounts. The explicitly configured seeded Render preview uses generated passwords and `seed-preview` identities instead.
 - Local sample login requires `WAM_LOCAL_DEMO=true`, non-production mode, and a loopback host. Never expose sample PIN login in production.
 - Cloud dashboard access requires both a WAM management role and the existing Supabase manager grant; finance data additionally requires the finance grant.
