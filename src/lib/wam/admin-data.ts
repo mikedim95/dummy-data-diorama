@@ -103,7 +103,7 @@ export const JOBS: Job[] = [];
 export const FINANCIAL_RECORDS: FinancialRecord[] = [];
 
 // Historical delivered orders (last ~150 days) feed the trend charts.
-let n = 980;
+let n = 800;
 for (let d = -150; d <= -4; d += int(1, 3)) {
   const [title, machine, mat, firstStep] = pick(PRODUCTS);
   const id = `ORD-${n++}`;
