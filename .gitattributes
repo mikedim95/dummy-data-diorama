@@ -1,0 +1,3 @@
+# Preserve supplied schema files and migration checksums across operating systems.
+database/migrations/*.sql -text
+database/schema/*.dbml -text

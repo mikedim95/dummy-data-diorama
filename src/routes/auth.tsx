@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { WamLogo } from "@/components/wam/OperatorLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { wamRequest } from "@/lib/wam/client-api";
+import { useWam } from "@/lib/wam/store";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: z.object({ redirect: z.string().optional() }),
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/auth")({
 const safe = (p?: string) => (p && p.startsWith("/") && !p.startsWith("//") ? p : "/admin");
 
 function AuthPage() {
+  const { resumeSession } = useWam();
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"in" | "up">("in");
@@ -33,12 +36,43 @@ function AuthPage() {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: "err" | "ok"; s: string } | null>(null);
+  const [localDemo, setLocalDemo] = useState<boolean | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: safe(redirect) as "/admin" }); });
-    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => { if (e === "SIGNED_IN" && s) navigate({ to: safe(redirect) as "/admin" }); });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate, redirect]);
+    void wamRequest<{ localDemo: boolean }>("config").then((config) => setLocalDemo(config.localDemo));
+  }, []);
+
+  useEffect(() => {
+    if (localDemo === null) return;
+    if (localDemo) {
+      void wamRequest<{ role: string }>("session").then((session) => {
+        if (["ADMIN", "MANAGER"].includes(session.role)) navigate({ to: safe(redirect) as "/admin" });
+      }).catch(() => {});
+      return;
+    }
+    let active = true;
+    let routing = false;
+    async function routeSession() {
+      if (routing || !active) return;
+      routing = true;
+      try {
+        const account = await wamRequest<{ role: string }>("session");
+        if (!active) return;
+        if (account.role === "PRODUCTION") {
+          await resumeSession();
+          if (active) navigate({ to: "/scan" });
+        } else navigate({ to: safe(redirect) as "/admin" });
+      } catch (error) {
+        if (active) setMsg({ t: "err", s: (error as Error).message });
+        routing = false;
+      }
+    }
+    void supabase.auth.getSession().then(({ data }) => { if (data.session) void routeSession(); });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) setTimeout(() => { void routeSession(); }, 0);
+    });
+    return () => { active = false; sub.subscription.unsubscribe(); };
+  }, [navigate, redirect, localDemo, resumeSession]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +92,28 @@ function AuthPage() {
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
     if (r.error) setMsg({ t: "err", s: r.error.message ?? "Google sign-in failed." });
   }
+
+  if (localDemo === null) return <div className="grid min-h-dvh place-items-center"><Loader2 className="size-6 animate-spin" /></div>;
+  if (localDemo) return (
+    <div className="grid min-h-dvh place-items-center bg-page px-6">
+      <form className="w-full max-w-sm space-y-5" onSubmit={async (event) => {
+        event.preventDefault(); setBusy(true); setMsg(null);
+        try {
+          await wamRequest("login", { id: "WAM-MANAGER-01", pin: pw });
+          navigate({ to: safe(redirect) as "/admin" });
+        } catch (error) { setMsg({ t: "err", s: (error as Error).message }); }
+        finally { setBusy(false); }
+      }}>
+        <WamLogo />
+        <h1 className="text-3xl font-extrabold">Local manager sign in</h1>
+        <p className="text-sm text-muted-foreground">Explore sample data stored in your local WAM database. This login is available only in local development.</p>
+        <label className="block text-sm">Local development PIN<Input aria-label="Local development PIN" type="password" value={pw} onChange={(event) => setPw(event.target.value)} className="mt-2 h-12" autoComplete="current-password" required /></label>
+        {msg && <p role="alert" className="text-sm text-critical">{msg.s}</p>}
+        <Button type="submit" variant="gold" size="xl" className="w-full" disabled={busy}>{busy ? "Signing in…" : "Open management dashboard"}</Button>
+        <p className="text-xs text-muted-foreground">Default sample PIN: 1234. Set WAM_LOCAL_PIN to change it.</p>
+      </form>
+    </div>
+  );
 
   return (
     <div className="min-h-dvh bg-page">

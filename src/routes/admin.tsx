@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, LogOut, ShieldX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { wamRequest } from "@/lib/wam/client-api";
 import { getAdminSnapshot } from "@/lib/wam/admin.functions";
 import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
@@ -16,7 +17,7 @@ import { WamLogo } from "@/components/wam/OperatorLayout";
 import { DetailDrawer } from "@/components/admin/DetailDrawer";
 import { useDrill, type AdminSearch } from "@/components/admin/ui";
 import { RANGES } from "@/lib/wam/admin-logic";
-import { db, DEMO_MODE, loadSnapshot, MANAGER, useOverview } from "@/lib/wam/admin-api";
+import { db, loadSnapshot, MANAGER, useOverview } from "@/lib/wam/admin-api";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
@@ -29,8 +30,11 @@ export const Route = createFileRoute("/admin")({
   validateSearch: (s): AdminSearch => searchSchema.parse(s) as AdminSearch,
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) throw redirect({ to: "/auth", search: { redirect: location.href } });
+    try { await wamRequest("session"); }
+    catch (error) {
+      if ([401, 403].includes((error as { status?: number }).status ?? 0)) throw redirect({ to: "/auth", search: { redirect: location.href } });
+      throw error;
+    }
   },
   head: () => ({ meta: [{ title: "Management · WAM" }, { name: "description", content: "WAM executive management dashboard." }] }),
   component: AdminGate,
@@ -43,14 +47,16 @@ function AdminGate() {
   const q = useQuery({ queryKey: ["admin-snapshot"], queryFn: () => fetchSnapshot(), staleTime: 60_000, retry: 1 });
   const signOut = async () => {
     await qc.cancelQueries(); qc.clear();
-    await supabase.auth.signOut();
+    const config = await wamRequest<{ localDemo: boolean }>("config");
+    await wamRequest("logout", {});
+    if (!config.localDemo) await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
   if (q.isPending) return <div className="grid min-h-dvh place-items-center bg-page"><Loader2 className="size-6 animate-spin text-gold" /></div>;
   if (q.isError) return <Centered title="Couldn't load the dashboard" body="Please try again." action={<Button variant="gold" onClick={() => q.refetch()}>Retry</Button>} />;
   if (!q.data.allowed) return <Centered title="No management access" body={`${q.data.email} is signed in but hasn't been given the manager role. Ask the owner to grant access.`} action={<Button variant="metal" onClick={signOut}><LogOut className="size-4" /> Sign out</Button>} />;
   loadSnapshot(q.data.data, q.data.email, q.data.canSeeFinance);
-  return <AdminLayout onSignOut={signOut} />;
+  return <AdminLayout onSignOut={signOut} sampleData={q.data.sampleData} />;
 }
 
 function Centered({ title, body, action }: { title: string; body: string; action: React.ReactNode }) {
@@ -144,7 +150,7 @@ function GlobalSearch({ open, setOpen }: { open: boolean; setOpen: (o: boolean) 
   );
 }
 
-function AdminLayout({ onSignOut }: { onSignOut: () => void }) {
+function AdminLayout({ onSignOut, sampleData }: { onSignOut: () => void; sampleData: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -182,7 +188,7 @@ function AdminLayout({ onSignOut }: { onSignOut: () => void }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-sm">
-          {DEMO_MODE && <div className="bg-walnut px-4 py-1 text-center text-[11px] font-medium tracking-wide text-gold">DEMO MODE — sample data, not connected to the WAM database</div>}
+          <div className="bg-walnut px-4 py-1 text-center text-[11px] font-medium tracking-wide text-gold">{sampleData ? "LOCAL SAMPLE DATA · Connected to the WAM PostgreSQL database" : "Connected to the WAM database"}</div>
           <div className="flex h-16 items-center gap-3 px-4 md:px-6">
             <button className="press grid size-10 place-items-center rounded-xl border border-border lg:hidden" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu className="size-5" /></button>
             <div className="hidden min-w-0 sm:block">

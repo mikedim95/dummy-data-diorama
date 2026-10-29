@@ -124,7 +124,7 @@ function MachineView({ code }: { code: string }) {
       <Sec title="Maintenance plans">
         <div className="space-y-1.5">{plans.map((p) => { const s = planState(p); return (
           <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-            <div className="min-w-0 flex-1"><div className="truncate font-medium">{p.title}</div><div className="text-xs text-muted-foreground">Every {p.intervalDays} days · next {fmtDate(new Date(planNextDue(p)).toISOString())}</div></div>
+            <div className="min-w-0 flex-1"><div className="truncate font-medium">{p.title}</div><div className="text-xs text-muted-foreground">{Number.isFinite(planNextDue(p)) ? `Next ${fmtDate(new Date(planNextDue(p)).toISOString())}${p.intervalDays ? ` · Every ${p.intervalDays} days` : ""}` : "Operator guidance · No due date"}</div></div>
             <Pill tone={s === "overdue" ? "critical" : s === "due" ? "warning" : s === "upcoming" ? "gold" : "success"}>{s === "ok" ? "On schedule" : s}</Pill>
           </div>); })}</div>
       </Sec>

@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { OperatorLayout, WamLogo } from "@/components/wam/OperatorLayout";
 import { MaintenanceReminder } from "@/components/wam/MaintenanceReminder";
 import { Eyebrow, StatusBadge } from "@/components/wam/bits";
-import { maintenanceFor, useWam } from "@/lib/wam/store";
+import { useMaintenanceFor, useWam } from "@/lib/wam/store";
 import { canFinishShift } from "@/lib/wam/logic";
 import { meta } from "@/lib/wam/meta";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ function ShiftPage() {
   const mine = tasks.filter((t) => t.machine === machineCode);
   const completed = mine.filter((t) => t.status === "completed");
   const active = mine.filter((t) => t.status === "active" && t.assignee === operator?.id);
-  const items = maintenanceFor(machineCode, "end");
+  const items = useMaintenanceFor(machineCode, "end");
   const ready = canFinishShift(items, endChecks, active.length > 0, note);
   const skipped = items.some((i) => endChecks[i.id] === "skipped");
 

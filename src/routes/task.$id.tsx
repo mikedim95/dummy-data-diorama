@@ -11,6 +11,7 @@ import { Elapsed, Eyebrow, PriorityLabel, StatusBadge, fmtTime } from "@/compone
 import { useWam } from "@/lib/wam/store";
 import { meta } from "@/lib/wam/meta";
 import type { Activity } from "@/lib/wam/types";
+import { wamPhoto } from "@/lib/wam/client-api";
 
 export const Route = createFileRoute("/task/$id")({
   head: () => meta("Task details", "Job details, instructions and progress."),
@@ -26,6 +27,20 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
+function TaskPhoto({ path }: { path: string }) {
+  const [source, setSource] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    let url: string | undefined;
+    if (!path.startsWith("/api/wam/files/")) { setSource(path); return; }
+    void wamPhoto(path).then((blob) => {
+      if (active) { url = URL.createObjectURL(blob); setSource(url); }
+    }).catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [path]);
+  return source ? <img src={source} alt="Task photo" className="size-16 rounded-lg border border-border object-cover" /> : <span className="grid size-16 place-items-center rounded-lg border border-border text-xs text-muted-foreground">Photo</span>;
+}
+
 function TaskActivity({ items }: { items: Activity[] }) {
   if (!items.length) return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   return (
@@ -37,7 +52,7 @@ function TaskActivity({ items }: { items: Activity[] }) {
           {a.text && <div className="text-sm">{a.text}</div>}
           {a.photos && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {a.photos.map((p, i) => <img key={i} src={p} alt="Task photo" className="size-16 rounded-lg border border-border object-cover" />)}
+              {a.photos.map((p, i) => <TaskPhoto key={i} path={p} />)}
             </div>
           )}
         </li>
@@ -59,7 +74,10 @@ function TaskPage() {
 
   // Preserve comment drafts across refresh / connectivity loss.
   useEffect(() => setText(localStorage.getItem(draftKey) ?? ""), [draftKey]);
-  useEffect(() => { text ? localStorage.setItem(draftKey, text) : localStorage.removeItem(draftKey); }, [text, draftKey]);
+  useEffect(() => {
+    if (text) localStorage.setItem(draftKey, text);
+    else localStorage.removeItem(draftKey);
+  }, [text, draftKey]);
 
   if (!task) {
     return <OperatorLayout back={{ to: "/work" }}><p className="text-muted-foreground">This task no longer exists.</p></OperatorLayout>;
@@ -124,9 +142,9 @@ function TaskPage() {
               size="xl"
               className="w-full"
               disabled={busy}
-              onClick={() => {
+              onClick={async () => {
                 setBusy(true);
-                const err = acceptTask(task.id);
+                const err = await acceptTask(task.id);
                 setBusy(false);
                 if (err) toast.error(err);
                 else { toast.success(`Job #${task.job} is now active`); navigate({ to: "/work" }); }
@@ -170,19 +188,21 @@ function TaskPage() {
               size="xl"
               className="w-full"
               disabled={busy || (sheet === "comment" && !text.trim()) || (sheet === "photo" && !photos.length)}
-              onClick={() => {
+              onClick={async () => {
                 setBusy(true);
+                try {
                 if (sheet === "finish") {
-                  completeTask(task.id, text, photos);
+                  await completeTask(task.id, text, photos);
                   toast.success(`Job #${task.job} stage completed`);
                   reset();
                   setBusy(false);
                   navigate({ to: "/work" });
                   return;
                 }
-                addActivity(task.id, sheet === "photo" ? { type: "photo", photos } : { type: "comment", text: text.trim() });
+                await addActivity(task.id, sheet === "photo" ? { type: "photo", photos } : { type: "comment", text: text.trim() });
                 toast.success(sheet === "photo" ? "Photos attached" : "Comment saved");
                 reset();
+                } catch (error) { toast.error((error as Error).message); }
                 setBusy(false);
               }}
             >

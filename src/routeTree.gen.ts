@@ -26,6 +26,7 @@ import { Route as AdminMachinesRouteImport } from './routes/admin.machines'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminProductionRouteImport } from './routes/admin.production'
 import { Route as TaskIdRouteImport } from './routes/task.$id'
+import { Route as ApiWamSplatRouteImport } from './routes/api.wam.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +113,11 @@ const TaskIdRoute = TaskIdRouteImport.update({
   path: '/task/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWamSplatRoute = ApiWamSplatRouteImport.update({
+  id: '/api/wam/$',
+  path: '/api/wam/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/api/wam/$': typeof ApiWamSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
   '/admin': typeof AdminIndexRoute
+  '/api/wam/$': typeof ApiWamSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/admin/production': typeof AdminProductionRoute
   '/task/$id': typeof TaskIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/api/wam/$': typeof ApiWamSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
     | '/admin/production'
     | '/task/$id'
     | '/admin/'
+    | '/api/wam/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/admin/production'
     | '/task/$id'
     | '/admin'
+    | '/api/wam/$'
   id:
     | '__root__'
     | '/'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/admin/production'
     | '/task/$id'
     | '/admin/'
+    | '/api/wam/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   ShiftRoute: typeof ShiftRoute
   WorkRoute: typeof WorkRoute
   TaskIdRoute: typeof TaskIdRoute
+  ApiWamSplatRoute: typeof ApiWamSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -362,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TaskIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/wam/$': {
+      id: '/api/wam/$'
+      path: '/api/wam/$'
+      fullPath: '/api/wam/$'
+      preLoaderRoute: typeof ApiWamSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -399,6 +419,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShiftRoute: ShiftRoute,
   WorkRoute: WorkRoute,
   TaskIdRoute: TaskIdRoute,
+  ApiWamSplatRoute: ApiWamSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

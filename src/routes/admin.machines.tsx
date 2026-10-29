@@ -36,7 +36,7 @@ function Machines() {
                   <Pill tone={m.status === "operational" ? "success" : m.status === "maintenance" ? "warning" : "critical"}>{m.status.replace(/_/g, " ")}</Pill>
                   <span className="text-xs text-muted-foreground">{db.JOBS.filter((j) => j.machineCode === m.code && j.status !== "completed").length} open jobs</span>
                 </div>
-                {next && <div className="mt-2 text-[11px] text-muted-foreground">Next: {next.title} · <span className={next.state === "overdue" ? "text-critical" : ""}>{fmtDate(new Date(next.next).toISOString())}</span></div>}
+                {next && Number.isFinite(next.next) && <div className="mt-2 text-[11px] text-muted-foreground">Next: {next.title} · <span className={next.state === "overdue" ? "text-critical" : ""}>{fmtDate(new Date(next.next).toISOString())}</span></div>}
               </div>
             </button>
           );
@@ -61,8 +61,8 @@ function Machines() {
         <Panel className="mt-5" title={`Maintenance plans · ${shown.length}`}>
           <DataList rows={shown} rowKey={(p) => p.id} onRow={(p) => open(`machine:${p.machineCode}`)} cols={[
             { key: "m", label: "Machine", render: (p) => machine(p.machineCode)?.name }, { key: "t", label: "Plan", render: (p) => p.title },
-            { key: "i", label: "Interval", render: (p) => `${p.intervalDays} days` }, { key: "l", label: "Last done", render: (p) => fmtDate(p.lastDoneAt) },
-            { key: "n", label: "Next due", render: (p) => fmtDate(new Date(p.next).toISOString()) },
+            { key: "i", label: "Interval", render: (p) => p.intervalDays ? `${p.intervalDays} days` : "Operator guidance" }, { key: "l", label: "Last done", render: (p) => p.lastDoneAt ? fmtDate(p.lastDoneAt) : "—" },
+            { key: "n", label: "Next due", render: (p) => Number.isFinite(p.next) ? fmtDate(new Date(p.next).toISOString()) : "No due date" },
             { key: "s", label: "State", render: (p) => <Pill tone={p.state === "overdue" ? "critical" : p.state === "due" ? "warning" : p.state === "upcoming" ? "gold" : "success"}>{p.state === "ok" ? "On schedule" : p.state}</Pill> },
           ]} />
         </Panel>

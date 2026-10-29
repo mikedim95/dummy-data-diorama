@@ -9,7 +9,6 @@ import { QRScanner } from "@/components/wam/QRScanner";
 import { Eyebrow } from "@/components/wam/bits";
 import { useWam } from "@/lib/wam/store";
 import { meta } from "@/lib/wam/meta";
-import { MACHINES } from "@/lib/wam/mock-data";
 
 export const Route = createFileRoute("/scan")({
   head: () => meta("Scan machine", "Scan your workstation QR code to see today's assignments."),
@@ -22,7 +21,7 @@ function greeting() {
 }
 
 function ScanPage() {
-  const { operator, lookupMachine, selectMachine, machine } = useWam();
+  const { operator, lookupMachine, selectMachine, machine, machines } = useWam();
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
   const [manual, setManual] = useState(false);
@@ -30,14 +29,15 @@ function ScanPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const resolve = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const m = lookupMachine(text);
       if (!m) {
         setErr(`"${text.slice(0, 40)}" is not a registered WAM machine.`);
         setScanning(false);
         return;
       }
-      selectMachine(m.code);
+      try { await selectMachine(m.code); }
+      catch (error) { setErr((error as Error).message); return; }
       toast.success(`${m.name} identified`);
       navigate({ to: "/machine" });
     },
@@ -88,7 +88,7 @@ function ScanPage() {
               <Button type="submit" variant="gold" className="h-12 w-12 rounded-xl" aria-label="Continue"><ArrowRight className="size-5" /></Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {MACHINES.map((m) => (
+              {machines.map((m) => (
                 <button type="button" key={m.code} onClick={() => setCode(m.code)} className="press h-9 rounded-lg border border-border px-3 font-mono text-xs text-muted-foreground">{m.code}</button>
               ))}
             </div>

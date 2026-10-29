@@ -16,11 +16,11 @@ export function WamLogo({ className }: { className?: string }) {
 }
 
 export function OfflineBanner() {
-  const { online } = useWam();
-  if (online) return null;
+  const { online, backendError } = useWam();
+  if (online && !backendError) return null;
   return (
     <div role="status" className="flex items-center justify-center gap-2 bg-warning/15 px-4 py-1.5 text-xs font-medium text-warning">
-      <WifiOff className="size-3.5" /> Offline — changes are saved on this device
+      <WifiOff className="size-3.5" /> {backendError ?? "Offline — reconnect before saving changes. Draft notes stay on this device."}
     </div>
   );
 }

@@ -1,5 +1,4 @@
-// Single data boundary for the management dashboard. Today it reads DEMO data;
-// swap these functions for server queries (with manager role checks) later.
+// Role-filtered database snapshots are supplied by the management server function.
 import { useMemo } from "react";
 import type * as Data from "./admin-data";
 import {
@@ -7,9 +6,9 @@ import {
   planNextDue, planState, receivables, payables, windows, type RangeKey, DAY, startOfDay, outstanding,
 } from "./admin-logic";
 
-export const DEMO_MODE = true;
+export const DEMO_MODE = false;
 
-type Snapshot = {
+export type Snapshot = {
   CUSTOMERS: typeof Data.CUSTOMERS; ADMIN_MACHINES: typeof Data.ADMIN_MACHINES; EMPLOYEES: typeof Data.EMPLOYEES;
   ATTENDANCE: typeof Data.ATTENDANCE; MAINTENANCE_PLANS: typeof Data.MAINTENANCE_PLANS; MAINTENANCE_RECORDS: typeof Data.MAINTENANCE_RECORDS;
   ORDERS: typeof Data.ORDERS; JOBS: typeof Data.JOBS; MATERIALS: typeof Data.MATERIALS; STOCK_BALANCES: typeof Data.STOCK_BALANCES;

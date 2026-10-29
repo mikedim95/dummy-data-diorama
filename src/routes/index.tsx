@@ -37,9 +37,9 @@ function Login() {
 
           <form
             className="mt-8 space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const r = login(id, pin);
+              const r = await login(id, pin);
               setErr(r);
               if (!r) navigate({ to: "/scan" });
             }}

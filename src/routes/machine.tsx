@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { OperatorLayout } from "@/components/wam/OperatorLayout";
 import { MaintenanceReminder } from "@/components/wam/MaintenanceReminder";
 import { Eyebrow } from "@/components/wam/bits";
-import { maintenanceFor, useWam } from "@/lib/wam/store";
+import { useMaintenanceFor, useWam } from "@/lib/wam/store";
 import { meta } from "@/lib/wam/meta";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ function MachineOverview() {
 function MachinePage() {
   const { machineCode, startChecks, setStartCheck } = useWam();
   const navigate = useNavigate();
-  const items = maintenanceFor(machineCode, "start");
+  const items = useMaintenanceFor(machineCode, "start");
   const required = items.filter((i) => i.kind === "required");
   const done = required.filter((i) => startChecks[i.id] === "done").length;
   const sorted = [...items].sort((a, b) => (a.kind === "info" ? 1 : 0) - (b.kind === "info" ? 1 : 0));

@@ -32,8 +32,12 @@ export function delta(cur: number, prev: number): number | null {
 }
 
 export type PlanState = "overdue" | "due" | "upcoming" | "ok";
-export function planNextDue(p: MaintenancePlan) { return new Date(p.lastDoneAt).getTime() + p.intervalDays * DAY; }
+export function planNextDue(p: MaintenancePlan) {
+  if (p.nextDueDate) return new Date(`${p.nextDueDate.slice(0, 10)}T12:00:00`).getTime();
+  return p.intervalDays > 0 && p.lastDoneAt ? new Date(p.lastDoneAt).getTime() + p.intervalDays * DAY : Infinity;
+}
 export function planState(p: MaintenancePlan, now = Date.now()): PlanState {
+  if (!Number.isFinite(planNextDue(p))) return "ok";
   const next = startOfDay(planNextDue(p));
   const t0 = startOfDay(now);
   if (next < t0) return "overdue";
@@ -64,7 +68,7 @@ export function netSales(recs: FinancialRecord[]) {
   return recs.reduce((a, f) => a + (f.type === "sale" ? f.amount : f.type === "refund" ? -f.amount : 0), 0);
 }
 export function costs(recs: FinancialRecord[]) {
-  return recs.reduce((a, f) => a + (f.type === "purchase" || f.type === "expense" ? f.amount : 0), 0);
+  return recs.reduce((a, f) => a + (f.type === "purchase" || f.type === "expense" ? f.amount : f.type === "purchase_refund" ? -f.amount : 0), 0);
 }
 
 /** Present today counts only explicit "present" rows; missing rows are "not recorded". */

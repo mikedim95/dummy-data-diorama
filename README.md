@@ -1,24 +1,49 @@
-# Dummy Data Diorama
+# WAM workshop app
 
-Implement exactly the screenshot and nothing else
+Workshop operator app and management dashboard, connected to the supplied WAM v4 PostgreSQL database (25 tables).
 
-This project was built with [Lovable](https://lovable.dev).
+## Run locally
 
-## Build with Lovable
+Requires Node.js 22.20 or later.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c65c7673-f6a8-40e9-80ba-8ac6edb83b7e).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+npm run db:seed
 npm run dev
 ```
+
+Open http://127.0.0.1:3000. Operator: `OP-104` or `OP-117`, PIN `1234`.
+Management: http://127.0.0.1:3000/auth, local PIN `1234`.
+
+The default local database is PostgreSQL/PGlite, persisted to `.data/wam`; photos are
+stored under `.data/uploads`. Docker is optional. Stop the server before running
+CLI commands on the embedded database. The supplied SQL enforces approvals,
+production steps, inventory posting, finance checks, maintenance reminders, and audit
+history. Sample logins and seeding are disabled in production.
+
+Read [backend setup and API documentation](docs/backend.md) for external PostgreSQL,
+Docker, authentication, production hosting, endpoints, and data storage.
+
+## Check
+
+```powershell
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
+
+The repository's existing lint setup also checks Prettier formatting throughout the
+original source. `npm run lint` reports existing formatting differences; the backend
+is linted independently during integration.
+
+## Project
+
+Original app: https://github.com/mikedim95/dummy-data-diorama
+
+Built with React, TanStack Start, Tailwind CSS and Lovable. Management data remains
+server-only and role-filtered. The cloud Supabase sign-in flow is preserved; real
+accounts need a linked `USER_ACCOUNT` and cloud role grants, as documented.
+
+[Continue in Lovable](https://lovable.dev/projects/c65c7673-f6a8-40e9-80ba-8ac6edb83b7e).

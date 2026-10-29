@@ -5,6 +5,7 @@ export type JobStatus = "pending" | "active" | "completed" | "blocked";
 export type Customer = { id: string; name: string; city: string; email: string };
 export type CustomerOrder = {
   id: string;
+  number?: string;
   customerId: string;
   title: string;
   quantity: number;
@@ -35,7 +36,7 @@ export type Job = {
 export type Employee = { id: string; name: string; department: string; title: string; status: "active" | "on_leave" | "inactive" };
 export type Attendance = { id: string; employeeId: string; date: string; status: "present" | "absent" | "leave"; checkIn?: string | undefined };
 export type AdminMachine = { code: string; name: string; model: string; location: string; status: "operational" | "maintenance" | "out_of_service" };
-export type MaintenancePlan = { id: string; machineCode: string; title: string; intervalDays: number; lastDoneAt: string };
+export type MaintenancePlan = { id: string; machineCode: string; title: string; intervalDays: number; lastDoneAt: string; nextDueDate?: string | undefined };
 export type MachineMaintenance = { id: string; planId?: string | undefined; machineCode: string; title: string; doneAt: string; by: string; note: string };
 export type Material = { id: string; code: string; name: string; unit: string; minQty: number; supplier: string; unitCost: number };
 export type StockBalance = { materialId: string; location: string; qty: number };
@@ -43,7 +44,7 @@ export type StockMovement = { id: string; materialId: string; at: string; type: 
 export type FinancialRecord = {
   id: string;
   ref: string;
-  type: "sale" | "refund" | "purchase" | "expense";
+  type: "sale" | "refund" | "purchase" | "expense" | "purchase_refund";
   category: string;
   counterparty: string;
   amount: number;
