@@ -58,7 +58,7 @@ function Finance() {
         <Panel title="Expenses by category · 6 months">
           <div className="h-56"><ResponsiveContainer><PieChart>
             <Pie data={cats} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2} stroke="var(--surface)" className="cursor-pointer" onClick={() => go("/admin/finance", { f: "expense" })}>
-              {cats.map((c, i) => <Cell key={c.name} fill={PALETTE[i % PALETTE.length]} />)}
+              {cats.map((c, i) => <Cell key={c.name} fill={PALETTE[i % PALETTE.length]!} />)}
             </Pie><Tooltip contentStyle={chartTheme.tooltip} formatter={(v) => eur(Number(v))} />
           </PieChart></ResponsiveContainer></div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{cats.map((c, i) => <span key={c.name} className="inline-flex items-center gap-1"><span className="size-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />{c.name}</span>)}</div>

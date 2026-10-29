@@ -164,12 +164,12 @@ OPEN.forEach(([p, c, status, dl, approval], i) => {
 // Purchases, expenses, refunds over ~6 months.
 for (let m = 5; m >= 0; m--) {
   const base = -m * 30;
-  const items: [FinancialRecord["type"], string, string, number][] = [
+  const items: [FinancialRecord["type"], string, string, number][] = ([
     ["purchase", "Raw materials", "Xylemporiki SA", int(2800, 4200)], ["purchase", "Raw materials", "Sidenor", int(900, 1600)],
     ["purchase", "Consumables", "Leitz", int(300, 700)], ["expense", "Energy", "DEI", int(1100, 1700)],
     ["expense", "Rent", "Kifisias Properties", 2400], ["expense", "Maintenance", "Trumpf Service", int(0, 1) ? int(300, 900) : 0],
     ["expense", "Logistics", "ACS Courier", int(250, 550)],
-  ];
+  ] as [FinancialRecord["type"], string, string, number][]);
   items.filter((x) => x[3] > 0).forEach(([type, category, counterparty, amount], i) => {
     const date = base - int(0, 25);
     FINANCIAL_RECORDS.push({ id: `FR-${type[0]}-${m}-${i}`, ref: `${type === "purchase" ? "PO" : "EX"}-${26 * 100 + m * 10 + i}`, type, category, counterparty, amount, paid: date < -40 || r() < 0.5 ? amount : 0, date: dayISO(date), dueDate: dayISO(date + 30) });
@@ -192,9 +192,9 @@ for (let d = -45; d <= 0; d++) {
 }
 
 // Stock movements: deliveries plus consumption linked to completed jobs.
-export const STOCK_MOVEMENTS: StockMovement[] = JOBS.filter((j) => j.materialId && j.completedAt && new Date(j.completedAt).getTime() > today0 - 60 * DAY)
-  .map((j) => ({ id: `SM-${j.id}`, materialId: j.materialId!, at: j.completedAt!, type: "out" as const, qty: -(j.materialQty ?? 1), jobId: j.id, note: `Issued to ${j.id}` }))
-  .concat(MATERIALS.flatMap((m, i) => [{ id: `SM-IN-${m.id}`, materialId: m.id, at: dayISO(-int(5, 50), 11), type: "in" as const, qty: m.minQty * 2, jobId: undefined, note: `Delivery from ${m.supplier}` }, ...(i % 4 === 0 ? [{ id: `SM-ADJ-${m.id}`, materialId: m.id, at: dayISO(-int(1, 20), 17), type: "adjust" as const, qty: -1, jobId: undefined, note: "Stock count correction" }] : [])]))
+export const STOCK_MOVEMENTS: StockMovement[] = (JOBS.filter((j) => j.materialId && j.completedAt && new Date(j.completedAt).getTime() > today0 - 60 * DAY)
+  .map((j) => ({ id: `SM-${j.id}`, materialId: j.materialId!, at: j.completedAt!, type: "out" as const, qty: -(j.materialQty ?? 1), jobId: j.id, note: `Issued to ${j.id}` }) as StockMovement)) as StockMovement[])
+  .concat(MATERIALS.flatMap((m, i) => [{ id: `SM-IN-${m.id}`, materialId: m.id, at: dayISO(-int(5, 50), 11), type: "in" as const, qty: m.minQty * 2, jobId: undefined, note: `Delivery from ${m.supplier}` }, ...(i % 4 === 0 ? [{ id: `SM-ADJ-${m.id}`, materialId: m.id, at: dayISO(-int(1, 20), 17), type: "adjust" as const, qty: -1, jobId: undefined, note: "Stock count correction" }] : [])] as StockMovement[]))
   .sort((a, b) => b.at.localeCompare(a.at));
 
 export const DOCUMENTS: DocumentRec[] = [
