@@ -104,7 +104,7 @@ export const FINANCIAL_RECORDS: FinancialRecord[] = [];
 
 // Historical delivered orders (last ~150 days) feed the trend charts.
 let n = 800;
-for (let d = -150; d <= -4; d += int(1, 3)) {
+for (let d = -150; d <= -1; d += int(1, 2)) {
   const [title, machine, mat, firstStep] = pick(PRODUCTS);
   const id = `ORD-${n++}`;
   const customer = pick(CUSTOMERS);
@@ -114,7 +114,7 @@ for (let d = -150; d <= -4; d += int(1, 3)) {
   ORDERS.push({ id, customerId: customer.id, title, quantity: qty, templateRev: `rev ${int(1, 4)}`, approval: "approved", status: delivered <= -1 ? "delivered" : "ready", createdAt: dayISO(d - 6), deadline: dayISO(delivered - lateBy), deliveredAt: delivered <= -1 ? dayISO(delivered, 16) : undefined, qc: { result: "pass", note: "Dimensions and finish within tolerance.", at: dayISO(delivered - 1, 14) } });
   const steps: [string, string][] = [[firstStep, machine], ...(FOLLOW[firstStep] ?? [])];
   steps.forEach(([name, m], i) => {
-    const off = d + i;
+    const off = Math.min(d + i, 0);
     JOBS.push({ id: `JOB-${id.slice(4)}-${i + 1}`, orderId: id, name: `${name} · ${title}`, sequence: i + 1, machineCode: m, employeeId: operatorFor(m), status: "completed", instructions: "Per drawing.", materialId: i === 0 ? mat : undefined, materialQty: i === 0 ? int(1, 8) : undefined, quantityDone: qty, startedAt: dayISO(off, 8, 15), completedAt: dayISO(off, int(10, 16), int(0, 59)) });
   });
   const amount = int(4, 60) * 50;
