@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,7 @@ function Login() {
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
             <Lock className="size-3" /> Demo: OP-104 or OP-117 · PIN 1234
           </p>
+          <Link to="/admin" className="press mt-4 block py-3 text-center text-xs text-brass hover:text-gold">Management dashboard →</Link>
         </div>
       </div>
     </div>
