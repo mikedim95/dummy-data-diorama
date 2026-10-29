@@ -210,21 +210,31 @@ export async function mutateTask(
                 bytes.subarray(8, 12).toString() === "WEBP";
         if (!valid) throw new ApiError(400, "The image contents do not match its type.");
         const documentId = randomUUID();
-        const directory = resolve(process.env["WAM_UPLOAD_DIR"] ?? ".data/uploads");
-        await mkdir(directory, { recursive: true });
-        const filePath = resolve(directory, documentId);
-        await writeFile(filePath, bytes, { flag: "wx" });
-        createdFiles.push(filePath);
+        const databaseStorage =
+          process.env["WAM_PHOTO_STORAGE"] === "database" ||
+          process.env["NODE_ENV"] === "production";
+        if (!databaseStorage) {
+          const directory = resolve(process.env["WAM_UPLOAD_DIR"] ?? ".data/uploads");
+          await mkdir(directory, { recursive: true });
+          const filePath = resolve(directory, documentId);
+          await writeFile(filePath, bytes, { flag: "wx" });
+          createdFiles.push(filePath);
+        }
         await insert(tx, "DOCUMENT", {
           id: documentId,
           title: `Task photo ${row["name"]}`,
           category: "photo",
-          file_path: `uploads/${documentId}`,
+          file_path: `${databaseStorage ? "database-uploads" : "uploads"}/${documentId}`,
           uploaded_by_employee_id: account.employee_id,
           mime_type: `image/${match[1]}`,
           file_size_bytes: bytes.length,
           file_checksum: createHash("sha256").update(bytes).digest("hex"),
         });
+        if (databaseStorage)
+          await tx.query(
+            "INSERT INTO wam_internal.document_content(document_id,content) VALUES($1,decode($2,'base64'))",
+            [documentId, bytes.toString("base64")],
+          );
         await insert(tx, "DOCUMENT_LINK", { document_id: documentId, job_id: id });
         photos.push(`/api/wam/files/${documentId}`);
       }

@@ -17,7 +17,10 @@ export async function insert(db: Database, table: string, row: Row) {
   );
 }
 
-export async function seedDemo(db: Database) {
+export async function seedDemo(
+  db: Database,
+  authProvider: "local-demo" | "seed-preview" = "local-demo",
+) {
   if ((await db.query('SELECT 1 FROM "EMPLOYEE" LIMIT 1')).rows.length) return;
   const D = await import("../../lib/wam/admin-data");
   const O = await import("../../lib/wam/mock-data");
@@ -29,7 +32,7 @@ export async function seedDemo(db: Database) {
       ...D.EMPLOYEES,
       {
         id: "WAM-MANAGER-01",
-        name: "Local WAM Manager",
+        name: authProvider === "seed-preview" ? "WAM Preview Manager" : "Local WAM Manager",
         department: "Management",
         title: "Manager",
         status: "active",
@@ -54,7 +57,7 @@ export async function seedDemo(db: Database) {
         await insert(tx, "USER_ACCOUNT", {
           id: demoId(`account:${e.id}`),
           employee_id: demoId(e.id),
-          auth_provider: "local-demo",
+          auth_provider: authProvider,
           auth_subject: e.id,
           role: e.id === "WAM-MANAGER-01" ? "ADMIN" : "PRODUCTION",
         });

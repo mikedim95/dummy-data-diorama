@@ -47,9 +47,9 @@ function AdminGate() {
   const q = useQuery({ queryKey: ["admin-snapshot"], queryFn: () => fetchSnapshot(), staleTime: 60_000, retry: 1 });
   const signOut = async () => {
     await qc.cancelQueries(); qc.clear();
-    const config = await wamRequest<{ localDemo: boolean }>("config");
+    const config = await wamRequest<{ localDemo: boolean; preview: boolean }>("config");
     await wamRequest("logout", {});
-    if (!config.localDemo) await supabase.auth.signOut();
+    if (!config.localDemo && !config.preview) await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
   };
   if (q.isPending) return <div className="grid min-h-dvh place-items-center bg-page"><Loader2 className="size-6 animate-spin text-gold" /></div>;
@@ -188,7 +188,7 @@ function AdminLayout({ onSignOut, sampleData }: { onSignOut: () => void; sampleD
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-border/70 bg-background/90 backdrop-blur-sm">
-          <div className="bg-walnut px-4 py-1 text-center text-[11px] font-medium tracking-wide text-gold">{sampleData ? "LOCAL SAMPLE DATA · Connected to the WAM PostgreSQL database" : "Connected to the WAM database"}</div>
+          <div className="bg-walnut px-4 py-1 text-center text-[11px] font-medium tracking-wide text-gold">{sampleData ? "SEEDED SAMPLE DATA · Connected to the WAM PostgreSQL database" : "Connected to the WAM database"}</div>
           <div className="flex h-16 items-center gap-3 px-4 md:px-6">
             <button className="press grid size-10 place-items-center rounded-xl border border-border lg:hidden" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu className="size-5" /></button>
             <div className="hidden min-w-0 sm:block">

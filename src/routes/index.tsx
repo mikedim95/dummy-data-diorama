@@ -14,7 +14,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Login() {
-  const { login, operator, hydrated, machineCode } = useWam();
+  const { login, operator, hydrated, machineCode, authMode } = useWam();
   const navigate = useNavigate();
   const [id, setId] = useState("OP-104");
   const [pin, setPin] = useState("");
@@ -33,9 +33,9 @@ function Login() {
           <div className="bg-walnut mb-8 h-1.5 w-16 rounded-full" />
           <Eyebrow>Workshop terminal</Eyebrow>
           <h1 className="mt-2 text-4xl leading-[1.05] font-extrabold">Operator<br />sign in</h1>
-          <p className="mt-3 text-sm text-muted-foreground">Use your operator ID and 4-digit PIN.</p>
+          <p className="mt-3 text-sm text-muted-foreground">{authMode === "preview" ? "Use your operator ID and preview password." : authMode === "local" ? "Use your operator ID and 4-digit PIN." : "Sign in with your WAM account."}</p>
 
-          <form
+          {authMode !== "supabase" ? <form
             className="mt-8 space-y-4"
             onSubmit={async (e) => {
               e.preventDefault();
@@ -49,25 +49,25 @@ function Login() {
               <Input value={id} onChange={(e) => setId(e.target.value)} autoCapitalize="characters" className="mt-1 h-14 rounded-xl bg-surface font-mono text-base tracking-wider" />
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-muted-foreground">PIN</span>
+              <span className="text-xs font-medium text-muted-foreground">{authMode === "preview" ? "Password" : "PIN"}</span>
               <Input
                 value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                inputMode="numeric"
+                onChange={(e) => setPin(authMode === "preview" ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 4))}
+                inputMode={authMode === "preview" ? "text" : "numeric"}
                 type="password"
                 autoComplete="current-password"
-                placeholder="••••"
-                className="mt-1 h-14 rounded-xl bg-surface text-center font-mono text-2xl tracking-[0.6em]"
+                placeholder={authMode === "preview" ? "Preview password" : "••••"}
+                className="mt-1 h-14 rounded-xl bg-surface font-mono text-base"
               />
             </label>
             {err && <p role="alert" className="text-sm text-critical">{err}</p>}
-            <Button type="submit" variant="gold" size="xl" className="w-full" disabled={pin.length !== 4}>
+            <Button type="submit" variant="gold" size="xl" className="w-full" disabled={!hydrated || (authMode === "preview" ? !pin : pin.length !== 4)}>
               Sign in <ArrowRight className="size-5" />
             </Button>
-          </form>
-          <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="size-3" /> Demo: OP-104 or OP-117 · PIN 1234
-          </p>
+          </form> : <Button asChild variant="gold" size="xl" className="mt-8 w-full"><Link to="/auth">Sign in to WAM</Link></Button>}
+          {authMode !== "supabase" && <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="size-3" /> {authMode === "local" ? "Demo: OP-104 or OP-117 · PIN 1234" : "Preview accounts: OP-104 or OP-117"}
+          </p>}
           <Link to="/admin" className="press mt-4 block py-3 text-center text-xs text-brass hover:text-gold">Management dashboard →</Link>
         </div>
       </div>

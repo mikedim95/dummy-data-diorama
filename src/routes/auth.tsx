@@ -36,15 +36,16 @@ function AuthPage() {
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: "err" | "ok"; s: string } | null>(null);
-  const [localDemo, setLocalDemo] = useState<boolean | null>(null);
+  const [passwordAuth, setPasswordAuth] = useState<boolean | null>(null);
+  const [preview, setPreview] = useState(false);
 
   useEffect(() => {
-    void wamRequest<{ localDemo: boolean }>("config").then((config) => setLocalDemo(config.localDemo));
+    void wamRequest<{ localDemo: boolean; preview: boolean }>("config").then((config) => { setPreview(config.preview); setPasswordAuth(config.localDemo || config.preview); });
   }, []);
 
   useEffect(() => {
-    if (localDemo === null) return;
-    if (localDemo) {
+    if (passwordAuth === null) return;
+    if (passwordAuth) {
       void wamRequest<{ role: string }>("session").then((session) => {
         if (["ADMIN", "MANAGER"].includes(session.role)) navigate({ to: safe(redirect) as "/admin" });
       }).catch(() => {});
@@ -72,7 +73,7 @@ function AuthPage() {
       if (event === "SIGNED_IN" && session) setTimeout(() => { void routeSession(); }, 0);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
-  }, [navigate, redirect, localDemo, resumeSession]);
+  }, [navigate, redirect, passwordAuth, resumeSession]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,24 +94,24 @@ function AuthPage() {
     if (r.error) setMsg({ t: "err", s: r.error.message ?? "Google sign-in failed." });
   }
 
-  if (localDemo === null) return <div className="grid min-h-dvh place-items-center"><Loader2 className="size-6 animate-spin" /></div>;
-  if (localDemo) return (
+  if (passwordAuth === null) return <div className="grid min-h-dvh place-items-center"><Loader2 className="size-6 animate-spin" /></div>;
+  if (passwordAuth) return (
     <div className="grid min-h-dvh place-items-center bg-page px-6">
       <form className="w-full max-w-sm space-y-5" onSubmit={async (event) => {
         event.preventDefault(); setBusy(true); setMsg(null);
         try {
-          await wamRequest("login", { id: "WAM-MANAGER-01", pin: pw });
+          await wamRequest(preview ? "preview-login" : "login", preview ? { id: "WAM-MANAGER-01", password: pw } : { id: "WAM-MANAGER-01", pin: pw });
           navigate({ to: safe(redirect) as "/admin" });
         } catch (error) { setMsg({ t: "err", s: (error as Error).message }); }
         finally { setBusy(false); }
       }}>
         <WamLogo />
-        <h1 className="text-3xl font-extrabold">Local manager sign in</h1>
-        <p className="text-sm text-muted-foreground">Explore sample data stored in your local WAM database. This login is available only in local development.</p>
-        <label className="block text-sm">Local development PIN<Input aria-label="Local development PIN" type="password" value={pw} onChange={(event) => setPw(event.target.value)} className="mt-2 h-12" autoComplete="current-password" required /></label>
+        <h1 className="text-3xl font-extrabold">{preview ? "Preview manager sign in" : "Local manager sign in"}</h1>
+        <p className="text-sm text-muted-foreground">{preview ? "Sign in to the seeded WAM preview with your manager password." : "Explore sample data stored in your local WAM database. This login is available only in local development."}</p>
+        <label className="block text-sm">{preview ? "Preview password" : "Local development PIN"}<Input aria-label={preview ? "Preview password" : "Local development PIN"} type="password" value={pw} onChange={(event) => setPw(event.target.value)} className="mt-2 h-12" autoComplete="current-password" required /></label>
         {msg && <p role="alert" className="text-sm text-critical">{msg.s}</p>}
         <Button type="submit" variant="gold" size="xl" className="w-full" disabled={busy}>{busy ? "Signing in…" : "Open management dashboard"}</Button>
-        <p className="text-xs text-muted-foreground">Default sample PIN: 1234. Set WAM_LOCAL_PIN to change it.</p>
+        {!preview && <p className="text-xs text-muted-foreground">Default sample PIN: 1234. Set WAM_LOCAL_PIN to change it.</p>}
       </form>
     </div>
   );

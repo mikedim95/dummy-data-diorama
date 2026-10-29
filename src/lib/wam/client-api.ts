@@ -2,8 +2,9 @@ async function authHeaders(): Promise<Record<string, string>> {
   let authorization: string | undefined;
   const local = (await fetch("/api/wam/config").then((response) => response.json())) as {
     localDemo: boolean;
+    preview: boolean;
   };
-  if (!local.localDemo) {
+  if (!local.localDemo && !local.preview) {
     const { supabase } = await import("../../integrations/supabase/client");
     const { data: session } = await supabase.auth.getSession();
     if (session.session) authorization = `Bearer ${session.session.access_token}`;

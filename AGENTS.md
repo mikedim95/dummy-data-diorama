@@ -19,9 +19,16 @@
 ## WAM v4 backend
 - Preserve the supplied SQL/DBML in `database/`. Add numbered migrations rather than editing applied migrations; initialization is for fresh databases only.
 - There are exactly 25 public business tables. Internal migration metadata lives in `wam_internal`.
-- PGlite is local development storage; production requires `DATABASE_URL` and verified Supabase identities linked to active WAM `USER_ACCOUNT`/`EMPLOYEE` records.
+- PGlite is local development storage. Production requires `DATABASE_URL`; normal deployments use verified Supabase identities linked to active WAM accounts. The explicitly configured seeded Render preview uses generated passwords and `seed-preview` identities instead.
 - Local sample login requires `WAM_LOCAL_DEMO=true`, non-production mode, and a loopback host. Never expose sample PIN login in production.
 - Cloud dashboard access requires both a WAM management role and the existing Supabase manager grant; finance data additionally requires the finance grant.
 - Set transaction-local audit actor/reason only after authentication. Respect SQL workflow triggers and optimistic versions. Stock balances are only changed by stock movements.
 - Demo fixtures are imported only by the server seeder. Management snapshots must never return demo fixture modules or bypass role checks.
 - `npm test`, `npm run typecheck`, and `npm run build` verify integration. See `docs/backend.md`.
+
+## Render preview
+- `render.yaml` targets the existing WAM / Preview environment. The frontend and backend share one Node web service; Postgres holds the seeded schema and photo bytes.
+- Hosted preview login is separate from local PIN login. Require configured HTTPS origin, long generated manager/operator passwords, a stable session secret, secure mode-scoped cookies, and active database accounts. Never publish default PIN access.
+- `npm run start:render` applies migrations and idempotently seeds an empty external database through the explicit preview seeding guard. Never reset or overwrite existing business data to deploy.
+- Store production photos transactionally in `wam_internal.document_content`; ephemeral service disk must not be the only copy.
+- See `docs/render.md` for secrets, account access, and free-plan expiry. Keep deployment credentials in ignored local files and Render environment secrets.

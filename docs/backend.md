@@ -79,8 +79,9 @@ npm start
 
 The build targets a Node server. Keep the `database` folder available relative to
 the application's working directory. Persist and back up external PostgreSQL and
-the upload directory. This integration does not publish or change the existing
-Lovable/Supabase deployment.
+the upload directory. For the password-protected, seeded Render preview, see
+[Render setup](render.md). Its photo bytes are stored in PostgreSQL; it does not
+change the existing Lovable/Supabase deployment.
 
 ## Data boundaries and endpoints
 

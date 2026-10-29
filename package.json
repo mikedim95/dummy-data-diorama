@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "node --env-file-if-exists=.env.local --import tsx scripts/database.ts migrate",
     "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/database.ts seed",
-    "start": "node .output/server/index.mjs"
+    "start": "node .output/server/index.mjs",
+    "db:seed:preview": "node --import tsx scripts/database.ts seed-preview",
+    "start:render": "npm run db:seed:preview && npm start"
   },
   "overrides": {
     "rolldown": "1.2.1",

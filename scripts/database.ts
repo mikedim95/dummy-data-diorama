@@ -1,5 +1,6 @@
 import { connectDatabase, migrate } from "../src/server/wam/database";
 import { seedDemo } from "../src/server/wam/seed";
+import { previewEnabled } from "../src/server/wam/auth";
 
 const command = process.argv[2] ?? "migrate";
 if (process.env["NODE_ENV"] === "production" && !process.env["DATABASE_URL"])
@@ -14,6 +15,17 @@ try {
     if (process.env["WAM_LOCAL_DEMO"] !== "true" || process.env["NODE_ENV"] === "production")
       throw new Error("Sample seeding requires WAM_LOCAL_DEMO=true outside production.");
     await seedDemo(db);
+  }
+  if (command === "seed-preview") {
+    if (
+      process.env["WAM_SEED_PREVIEW"] !== "true" ||
+      !process.env["DATABASE_URL"] ||
+      !previewEnabled()
+    )
+      throw new Error(
+        "Hosted preview seeding requires an external database and fully configured preview passwords.",
+      );
+    await seedDemo(db, "seed-preview");
   }
   const { rows } = await db.query(
     "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename",

@@ -47,3 +47,7 @@ server-only and role-filtered. The cloud Supabase sign-in flow is preserved; rea
 accounts need a linked `USER_ACCOUNT` and cloud role grants, as documented.
 
 [Continue in Lovable](https://lovable.dev/projects/c65c7673-f6a8-40e9-80ba-8ac6edb83b7e).
+
+## Render preview
+
+See [Render deployment and sign-in](docs/render.md). The hosted preview uses generated passwords and a managed PostgreSQL database; the local `1234` PIN is disabled there.

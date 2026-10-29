@@ -8,6 +8,9 @@ import {
   clearSessionCookie,
   localDemoEnabled,
   localLogin,
+  previewEnabled,
+  previewLogin,
+  requestOrigin,
   requireRole,
   sessionCookie,
 } from "./auth";
@@ -57,9 +60,10 @@ export async function handleWamRequest(request: Request): Promise<Response> {
     const method = request.method;
     if (!["GET", "POST", "PATCH"].includes(method))
       return json({ error: "Method not allowed." }, 405, { Allow: "GET, POST, PATCH" });
-    if (method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin)
+    if (method !== "GET" && request.headers.get("origin") !== requestOrigin(request))
       throw new ApiError(403, "A matching Origin header is required.");
-    if (path === "config" && method === "GET") return json({ localDemo: localDemoEnabled() });
+    if (path === "config" && method === "GET")
+      return json({ localDemo: localDemoEnabled(), preview: previewEnabled() });
     const db = await getDatabase();
     if (path === "health" && method === "GET") {
       const { rows } = await db.query(
@@ -69,7 +73,18 @@ export async function handleWamRequest(request: Request): Promise<Response> {
         status: "ok",
         database: "PostgreSQL",
         tables: rows[0]?.["tables"],
-        sampleData: localDemoEnabled(),
+        sampleData: localDemoEnabled() || previewEnabled(),
+      });
+    }
+    if (path === "preview-login" && method === "POST") {
+      const input = z
+        .object({ id: z.string().min(1).max(80), password: z.string().min(1).max(200) })
+        .strict()
+        .parse(await body(request));
+      const account = await previewLogin(db, request, input.id, input.password);
+      if (account.role === "PRODUCTION") await startShift(db, account);
+      return json({ role: account.role, employeeCode: account.employee_code }, 200, {
+        "Set-Cookie": sessionCookie(account.id, true, "preview"),
       });
     }
     if (path === "login" && method === "POST") {
@@ -136,7 +151,7 @@ export async function handleWamRequest(request: Request): Promise<Response> {
     if (file && method === "GET") {
       const id = uuid.parse(file[1]);
       const doc = (await db.query('SELECT * FROM "DOCUMENT" WHERE id=$1', [id])).rows[0];
-      if (!doc || !doc["file_path"].startsWith("uploads/"))
+      if (!doc || !/^(uploads|database-uploads)\//.test(doc["file_path"]))
         throw new ApiError(404, "File not found.");
       if (doc["visibility"] === "RESTRICTED") requireRole(account, ["ADMIN", "FINANCE"]);
       if (
@@ -149,11 +164,24 @@ export async function handleWamRequest(request: Request): Promise<Response> {
         ).rows.length
       )
         throw new ApiError(403, "You do not have access to this task's files.");
-      const bytes = await readFile(
-        resolve(process.env["WAM_UPLOAD_DIR"] ?? ".data/uploads", id),
-      ).catch(() => {
-        throw new ApiError(404, "File is missing from storage.");
-      });
+      const stored = doc["file_path"].startsWith("database-uploads/")
+        ? (
+            await db.query(
+              "SELECT encode(content,'base64') AS base64 FROM wam_internal.document_content WHERE document_id=$1",
+              [id],
+            )
+          ).rows[0]
+        : undefined;
+      const bytes = doc["file_path"].startsWith("database-uploads/")
+        ? stored
+          ? Buffer.from(stored["base64"], "base64")
+          : null
+        : await readFile(resolve(process.env["WAM_UPLOAD_DIR"] ?? ".data/uploads", id)).catch(
+            () => {
+              throw new ApiError(404, "File is missing from storage.");
+            },
+          );
+      if (!bytes) throw new ApiError(404, "File is missing from storage.");
       return new Response(bytes, {
         headers: {
           "Content-Type": doc["mime_type"],

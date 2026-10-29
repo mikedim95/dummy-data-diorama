@@ -1,6 +1,6 @@
 import type { Database, Row } from "./database";
 import type { Account } from "./auth";
-import { requireRole, localDemoEnabled } from "./auth";
+import { requireRole, localDemoEnabled, previewEnabled } from "./auth";
 import type { Activity, MaintenanceItem, Task } from "../../lib/wam/types";
 import type { Snapshot } from "../../lib/wam/admin-api";
 
@@ -383,7 +383,7 @@ export async function adminSnapshot(db: Database, account: Account) {
     allowed: true as const,
     email: account.full_name,
     canSeeFinance,
-    sampleData: localDemoEnabled(),
+    sampleData: localDemoEnabled() || previewEnabled(),
     data,
   };
 }

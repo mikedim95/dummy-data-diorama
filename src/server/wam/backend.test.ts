@@ -236,6 +236,7 @@ describe.sequential("WAM v4 PostgreSQL backend", () => {
     ).toBe(409);
     const photo =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=";
+    process.env["WAM_PHOTO_STORAGE"] = "database";
     const saved = await request(`tasks/${task.id}/activity`, operatorCookie, {
       recordVersion: task.recordVersion,
       text: "Photo from backend test",
@@ -244,6 +245,10 @@ describe.sequential("WAM v4 PostgreSQL backend", () => {
     expect(saved.status).toBe(200);
     const updated = (await saved.json()).tasks.find((item: { id: string }) => item.id === task.id);
     const photoPath = updated.activity.at(-1).photos[0].replace("/api/wam/", "");
+    const content = (
+      await db.query("SELECT encode(content,'base64') AS base64 FROM wam_internal.document_content")
+    ).rows[0]!;
+    expect(Buffer.from(content["base64"], "base64").toString("base64")).toBe(photo.split(",")[1]);
     expect((await request(photoPath, operatorCookie)).headers.get("content-type")).toBe(
       "image/png",
     );

@@ -34,6 +34,7 @@ const initial: State = {
 };
 type Ctx = State & {
   hydrated: boolean;
+  authMode: "local" | "preview" | "supabase";
   online: boolean;
   backendError: string | null;
   machine: Machine | null;
@@ -53,6 +54,7 @@ const StoreCtx = createContext<Ctx | null>(null);
 export function WamProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>(initial);
   const [hydrated, setHydrated] = useState(false);
+  const [authMode, setAuthMode] = useState<"local" | "preview" | "supabase">("supabase");
   const [online, setOnline] = useState(true);
   const [backendError, setBackendError] = useState<string | null>(null);
   const pending = useRef(0);
@@ -76,7 +78,15 @@ export function WamProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   useEffect(() => {
-    void refresh();
+    void wamRequest<{ localDemo: boolean; preview: boolean }>("config")
+      .then((config) => {
+        setAuthMode(config.preview ? "preview" : config.localDemo ? "local" : "supabase");
+        return refresh();
+      })
+      .catch((error: Error) => {
+        setBackendError(error.message);
+        setHydrated(true);
+      });
     setOnline(navigator.onLine);
     const on = () => {
       setOnline(true);
@@ -137,6 +147,7 @@ export function WamProvider({ children }: { children: ReactNode }) {
     return {
       ...state,
       hydrated,
+      authMode,
       online,
       backendError,
       lookupMachine,
@@ -144,7 +155,10 @@ export function WamProvider({ children }: { children: ReactNode }) {
       resumeSession,
       login: async (id, pin) => {
         try {
-          await wamRequest("login", { id, pin });
+          await wamRequest(
+            authMode === "preview" ? "preview-login" : "login",
+            authMode === "preview" ? { id, password: pin } : { id, pin },
+          );
           await update("shift/start", {});
           return null;
         } catch (error) {
@@ -182,7 +196,17 @@ export function WamProvider({ children }: { children: ReactNode }) {
         }
       },
     };
-  }, [state, hydrated, online, backendError, lookupMachine, refresh, update, resumeSession]);
+  }, [
+    state,
+    hydrated,
+    authMode,
+    online,
+    backendError,
+    lookupMachine,
+    refresh,
+    update,
+    resumeSession,
+  ]);
   return <StoreCtx.Provider value={api}>{children}</StoreCtx.Provider>;
 }
 
