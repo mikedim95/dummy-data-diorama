@@ -1,4 +1,10 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, LogOut, ShieldX } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { getAdminSnapshot } from "@/lib/wam/admin.functions";
+import { Button } from "@/components/ui/button";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
@@ -10,7 +16,7 @@ import { WamLogo } from "@/components/wam/OperatorLayout";
 import { DetailDrawer } from "@/components/admin/DetailDrawer";
 import { useDrill, type AdminSearch } from "@/components/admin/ui";
 import { RANGES } from "@/lib/wam/admin-logic";
-import { db, DEMO_MODE, MANAGER, useOverview } from "@/lib/wam/admin-api";
+import { db, DEMO_MODE, loadSnapshot, MANAGER, useOverview } from "@/lib/wam/admin-api";
 import { cn } from "@/lib/utils";
 
 const searchSchema = z.object({
@@ -21,9 +27,44 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/admin")({
   validateSearch: (s): AdminSearch => searchSchema.parse(s) as AdminSearch,
+  ssr: false,
+  beforeLoad: async ({ location }) => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw redirect({ to: "/auth", search: { redirect: location.href } });
+  },
   head: () => ({ meta: [{ title: "Management · WAM" }, { name: "description", content: "WAM executive management dashboard." }] }),
-  component: AdminLayout,
+  component: AdminGate,
 });
+
+function AdminGate() {
+  const fetchSnapshot = useServerFn(getAdminSnapshot);
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const q = useQuery({ queryKey: ["admin-snapshot"], queryFn: () => fetchSnapshot(), staleTime: 60_000, retry: 1 });
+  const signOut = async () => {
+    await qc.cancelQueries(); qc.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
+  if (q.isPending) return <div className="grid min-h-dvh place-items-center bg-page"><Loader2 className="size-6 animate-spin text-gold" /></div>;
+  if (q.isError) return <Centered title="Couldn't load the dashboard" body="Please try again." action={<Button variant="gold" onClick={() => q.refetch()}>Retry</Button>} />;
+  if (!q.data.allowed) return <Centered title="No management access" body={`${q.data.email} is signed in but hasn't been given the manager role. Ask the owner to grant access.`} action={<Button variant="metal" onClick={signOut}><LogOut className="size-4" /> Sign out</Button>} />;
+  loadSnapshot(q.data.data, q.data.email, q.data.canSeeFinance);
+  return <AdminLayout onSignOut={signOut} />;
+}
+
+function Centered({ title, body, action }: { title: string; body: string; action: React.ReactNode }) {
+  return (
+    <div className="grid min-h-dvh place-items-center bg-page px-6 text-center">
+      <div className="max-w-sm">
+        <ShieldX className="mx-auto size-10 text-brass" strokeWidth={1.5} />
+        <h1 className="mt-4 text-xl font-bold">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+        <div className="mt-6">{action}</div>
+      </div>
+    </div>
+  );
+}
 
 const NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -103,7 +144,7 @@ function GlobalSearch({ open, setOpen }: { open: boolean; setOpen: (o: boolean) 
   );
 }
 
-function AdminLayout() {
+function AdminLayout({ onSignOut }: { onSignOut: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -167,9 +208,10 @@ function AdminLayout() {
               {ov.alerts.length > 0 && <span className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full bg-critical text-[10px] font-bold text-destructive-foreground">{ov.alerts.length}</span>}
             </button>
             <div className="hidden items-center gap-2 md:flex">
-              <div className="grid size-10 place-items-center rounded-full border border-gold/60 bg-elevated font-display text-xs font-bold text-gold">AM</div>
-              <div className="text-xs leading-tight"><div className="font-semibold">{MANAGER.name}</div><div className="text-muted-foreground">{MANAGER.role}</div></div>
+              <div className="grid size-10 place-items-center rounded-full border border-gold/60 bg-elevated font-display text-xs font-bold text-gold">{MANAGER.name.slice(0, 2).toUpperCase()}</div>
+              <div className="max-w-40 text-xs leading-tight"><div className="truncate font-semibold">{MANAGER.name}</div><div className="text-muted-foreground">{MANAGER.role}</div></div>
             </div>
+            <button onClick={onSignOut} className="press grid size-10 place-items-center rounded-xl border border-border" aria-label="Sign out" title="Sign out"><LogOut className="size-4" /></button>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">
